@@ -369,24 +369,30 @@
         for (var dx = -20; dx < W + 20; dx += 44) {
           ctx.fillRect(dx, ry + 10 + (ROAD_H - 22) / 2 - 2, 24, 4);
         }
-        // 5 xe ambient, 2 làn
+        // 5 xe ambient, 2 làn — cùng tốc độ + cách đều mỗi làn để không lồng vào nhau
         var lanes = [ry + 26, ry + 58];
-        for (var k = 0; k < 5; k++) {
-          var set = carSets[k] || carSets[0];
-          var img = A.anim(set, t, 10);
-          if (!img) continue;
-          var right = k % 2 === 0;
-          var speed = (38 + k * 9) * (right ? 1 : -1);
-          var span = W + 320;
-          var x = right
-            ? ((t * speed + k * 173) % span) - 160
-            : span - 160 - ((t * -speed + k * 173) % span);
-          var cw = 104, ch = cw * img.height / img.width;
-          var cy2 = lanes[right ? 0 : 1];
-          ctx.save();
-          if (!right) { ctx.translate(x + cw / 2, 0); ctx.scale(-1, 1); ctx.translate(-(x + cw / 2), 0); }
-          ctx.drawImage(img, x, cy2 - ch / 2, cw, ch);
-          ctx.restore();
+        var laneCars = [[0, 2, 4], [1, 3]];
+        var carSpeed = 52, span = W + 320;
+        var orderX = s.car ? s.car.x * W : null;
+        for (var li = 0; li < laneCars.length; li++) {
+          var right = li === 0, ids = laneCars[li];
+          for (var j = 0; j < ids.length; j++) {
+            var k = ids[j];
+            var set = carSets[k] || carSets[0];
+            var img = A.anim(set, t, 10);
+            if (!img) continue;
+            var off = (span / ids.length) * j;
+            var x = right
+              ? ((t * carSpeed + off) % span) - 160
+              : span - 160 - ((t * carSpeed + off) % span);
+            if (orderX !== null && Math.abs(x + 52 - orderX) < 150) continue; // tránh xe đơn drive-thru
+            var cw = 104, ch = cw * img.height / img.width;
+            var cy2 = lanes[li];
+            ctx.save();
+            if (!right) { ctx.translate(x + cw / 2, 0); ctx.scale(-1, 1); ctx.translate(-(x + cw / 2), 0); }
+            ctx.drawImage(img, x, cy2 - ch / 2, cw, ch);
+            ctx.restore();
+          }
         }
         // xe đơn drive-thru (từ sim)
         if (s.car) {

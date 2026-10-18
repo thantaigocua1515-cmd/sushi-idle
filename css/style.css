@@ -79,7 +79,18 @@ html, body {
   text-shadow: 0 1px 3px #000; background: rgba(0,0,0,.45); border-radius: 10px;
 }
 #navBoost.cooling .cd { display: flex; }
+#navBoost.cooling .btxt { display: none; }
 #navBoost.cooling img { filter: grayscale(.6) brightness(.7); }
+
+/* Nút quay về tháp trên màn bản đồ */
+#mapBack {
+  position: absolute; top: 78px; left: 12px; width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(20,12,6,.78); border: 2px solid #8a5a2b; color: #ffd9a0;
+  font-size: 26px; line-height: 1; z-index: 6; display: none; cursor: pointer;
+  font-family: 'Bebas Neue', sans-serif; padding-bottom: 4px;
+}
+#mapBack.show { display: block; }
+#mapBack:active { transform: scale(.93); }
 
 /* ---------- Popup khung mái ngói ---------- */
 #popup, #shopModal {

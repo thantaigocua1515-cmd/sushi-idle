@@ -30,6 +30,7 @@
       document.querySelectorAll('#bottomnav [data-screen]').forEach(function (b) {
         b.classList.toggle('active', b.dataset.screen === name);
       });
+      $('mapBack').classList.toggle('show', name === 'map');
     }
 
     // ---------- toast ----------

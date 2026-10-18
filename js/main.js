@@ -268,6 +268,9 @@
     applyTestParam();
     ui.updateHUD(state);
     ui.setScreen(uiState.screen);
+    document.getElementById('mapBack').onclick = function () {
+      uiState.screen = 'restaurant'; ui.closeShop(); ui.setScreen('restaurant');
+    };
     document.getElementById('loading').classList.add('hidden');
 
     if (!params.get('test')) {
