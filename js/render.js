@@ -109,30 +109,24 @@
       }
     }
 
-    // --- nhân vật chibi (khách vẽ tay vì kit không có sprite khách) ---
-    function drawCustomer(ctx, x, yBase, color, phase, scale) {
+    // --- khách hàng: sprite AI-gen theo style kit (store.cust0..3), fallback blob nếu chưa tải ---
+    function drawCustomer(ctx, store, x, yBase, variant, phase, scale) {
       scale = scale || 1;
       ctx.save();
       ctx.translate(x, yBase);
-      ctx.scale(scale, scale);
       var bob = phase === 'eating' ? Math.sin(Date.now() / 130) * 2 : 0;
       ctx.translate(0, bob);
       ctx.fillStyle = 'rgba(0,0,0,.25)';
       ctx.beginPath(); ctx.ellipse(0, 4, 16, 5, 0, 0, 7); ctx.fill();
-      ctx.fillStyle = color;
-      rr(ctx, -13, -34, 26, 26, 9); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = '#ffd9b3';
-      ctx.beginPath(); ctx.arc(0, -44, 12, 0, 7); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = '#4a2f1d';
-      ctx.beginPath(); ctx.arc(0, -47, 12, Math.PI, 0); ctx.fill();
-      ctx.fillStyle = '#222';
-      ctx.beginPath(); ctx.arc(-4.5, -43, 1.8, 0, 7); ctx.fill();
-      ctx.beginPath(); ctx.arc(4.5, -43, 1.8, 0, 7); ctx.fill();
-      if (phase === 'eating') {
-        ctx.strokeStyle = '#a55'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(0, -38, 3.5, 0.2, Math.PI - 0.2); ctx.stroke();
+      var img = store['cust' + ((variant || 0) % 4)];
+      if (img) {
+        var h = 66 * scale, w = h * img.width / img.height;
+        ctx.drawImage(img, -w / 2, -h + 4, w, h);
+      } else {
+        ctx.fillStyle = '#e08a97';
+        rr(ctx, -13, -34, 26, 26, 9); ctx.fill();
+        ctx.fillStyle = '#ffd9b3';
+        ctx.beginPath(); ctx.arc(0, -44, 12, 0, 7); ctx.fill();
       }
       ctx.restore();
     }
@@ -157,6 +151,7 @@
         out.push({
           x: 78 + k * 68,
           color: CUST_COLORS[(idx * 2 + k) % CUST_COLORS.length],
+          variant: (idx * 2 + k) % 4,
           dish: CFG.DISH_IDS[(idx * 2 + k) % CFG.DISH_IDS.length],
           off: k * 5.5,
         });
@@ -298,20 +293,20 @@
               if (cyc > 9.5) return; // vắng 1 lúc
               var cx = cu.x, cyb = fy + FLOOR_H - 8;
               var ph = cyc < 5.5 ? 'waiting' : 'eating';
-              drawCustomer(ctx, cx, cyb, cu.color, ph, 0.72);
+              drawCustomer(ctx, store, cx, cyb, cu.variant, ph, 0.72);
               if (cyc < 5.5) {
-                bubble(ctx, cx, cyb - 62, 40, 32);
+                bubble(ctx, cx, cyb - 84, 40, 32);
                 var di = store[A.DISH_ICON[cu.dish]];
                 if (di) {
                   // icon pack bản trắng -> lót đĩa nền tối cho nổi trên bubble trắng
                   ctx.fillStyle = '#4a2f1d';
-                  ctx.beginPath(); ctx.arc(cx, cyb - 62, 13, 0, 7); ctx.fill();
-                  ctx.drawImage(di, cx - 10, cyb - 72, 20, 20);
+                  ctx.beginPath(); ctx.arc(cx, cyb - 84, 13, 0, 7); ctx.fill();
+                  ctx.drawImage(di, cx - 10, cyb - 94, 20, 20);
                 }
-                else text(ctx, DISH_EMOJI[cu.dish] || '?', cx, cyb - 62, 17, '#8a5a2b');
+                else text(ctx, DISH_EMOJI[cu.dish] || '?', cx, cyb - 84, 17, '#8a5a2b');
               } else {
-                bubble(ctx, cx, cyb - 62, 34, 26);
-                text(ctx, '...', cx, cyb - 62, 13, '#8a5a2b');
+                bubble(ctx, cx, cyb - 84, 34, 26);
+                text(ctx, '...', cx, cyb - 84, 13, '#8a5a2b');
               }
             })(custs[k]);
           }

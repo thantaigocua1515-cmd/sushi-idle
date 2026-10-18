@@ -107,6 +107,13 @@
       }
       if (onProgress) onProgress(done, keys.length);
     }
+    // Sprite khách hàng (base64 trong js/customers-data.js) -> store.cust0..3
+    if (root.SushiCustomersData) {
+      var ck = Object.keys(root.SushiCustomersData);
+      var cimgs = await Promise.all(ck.map(function (k) { return loadImage(root.SushiCustomersData[k]); }));
+      for (var c = 0; c < ck.length; c++) { store['cust' + c] = cimgs[c]; done++; }
+      if (onProgress) onProgress(done, keys.length + ck.length);
+    }
     return store;
   }
 
