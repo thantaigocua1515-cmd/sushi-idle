@@ -108,11 +108,19 @@
       if (onProgress) onProgress(done, keys.length);
     }
     // Sprite khách hàng (base64 trong js/customers-data.js) -> store.cust0..3
+    var ck = [];
     if (root.SushiCustomersData) {
-      var ck = Object.keys(root.SushiCustomersData);
+      ck = Object.keys(root.SushiCustomersData);
       var cimgs = await Promise.all(ck.map(function (k) { return loadImage(root.SushiCustomersData[k]); }));
       for (var c = 0; c < ck.length; c++) { store['cust' + c] = cimgs[c]; done++; }
       if (onProgress) onProgress(done, keys.length + ck.length);
+    }
+    // Icon món ăn màu style kit (base64 trong js/dishes-data.js) -> ghi đè icon pack trắng
+    if (root.SushiDishData) {
+      var dk = Object.keys(DISH_ICON);
+      var dimgs = await Promise.all(dk.map(function (id) { return loadImage(root.SushiDishData['dish-' + id]); }));
+      for (var d = 0; d < dk.length; d++) { store[DISH_ICON[dk[d]]] = dimgs[d]; done++; }
+      if (onProgress) onProgress(done, keys.length + ck.length + dk.length);
     }
     return store;
   }

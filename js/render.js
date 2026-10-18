@@ -13,6 +13,29 @@
   function createRenderer(store) {
     // cache dãy frame
     var chefCook = A.frames(store, 'chefCook', 20);
+    var chefServe = A.frames(store, 'chefServe', 20);
+
+    // Vị trí đầu bếp theo thời gian: nấu ở bếp, bưng món (Walk Full Order) giao cho khách
+    // chu kỳ khách 11s: giao món lúc cyc 4.0->6.7 (khách bắt đầu ăn ở 5.5)
+    var KITCHEN_X = 248;
+    function chefPose(fi, t) {
+      var custs = ambCustomers(fi);
+      for (var k = 0; k < custs.length; k++) {
+        var cyc = (t + custs[k].off) % 11;
+        if (cyc > 9.5) continue;
+        var cx = custs[k].x + 38; // đứng cạnh khách, không đè lên
+        if (cyc >= 4.0 && cyc < 5.2) {
+          var p = (cyc - 4.0) / 1.2;
+          return { x: KITCHEN_X + (cx - KITCHEN_X) * p, mode: 'go', dir: -1 };
+        }
+        if (cyc >= 5.2 && cyc < 5.5) return { x: cx, mode: 'serve', dir: -1 };
+        if (cyc >= 5.5 && cyc < 6.7) {
+          var p2 = (cyc - 5.5) / 1.2;
+          return { x: cx + (KITCHEN_X - cx) * p2, mode: 'back', dir: 1 };
+        }
+      }
+      return { x: KITCHEN_X, mode: 'cook', dir: -1 };
+    }
     var chefWalk = A.frames(store, 'chefWalk', 20);
     var cashierF = A.frames(store, 'cashier', 40);
     var waiterF = A.frames(store, 'waiter', 20);
@@ -132,9 +155,9 @@
     }
 
     function bubble(ctx, x, y, w, h) {
-      ctx.fillStyle = 'rgba(255,255,255,.96)';
+      ctx.fillStyle = '#fdeed3'; // kem như popup kit
       rr(ctx, x - w / 2, y - h / 2, w, h, 10); ctx.fill();
-      ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = 2.5; ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,.96)';
       ctx.beginPath();
       ctx.moveTo(x - 6, y + h / 2 - 1); ctx.lineTo(x + 6, y + h / 2 - 1); ctx.lineTo(x, y + h / 2 + 8);
@@ -269,17 +292,24 @@
           }
           if (lvl >= CFG.MAX_FLOOR_LEVEL) text(ctx, 'MAX', b.x + b.w / 2, b.y + b.h + 10, 12, '#ffd54f', 'Bebas Neue');
 
-          // đầu bếp trong tầng
+          // đầu bếp trong tầng: nấu ở bếp, bưng món giao cho khách rồi quay về
           var c = F.chef;
-          var chefImg = A.anim(chefCook, t + i * 1.7, 8);
+          var pose = chefPose(i, t);
+          var chefImg = pose.mode === 'cook' ? A.anim(chefCook, t + i * 1.7, 8)
+            : pose.mode === 'serve' ? (chefServe[0] || null)
+            : A.anim(chefServe, t * 9, 9);
           if (chefImg) {
             var chh = c.h, cw = chh * chefImg.width / chefImg.height;
-            ctx.drawImage(chefImg, c.x - cw / 2, c.y + c.h / 2 - chh, cw, chh);
+            var chx = pose.x;
+            ctx.save();
+            if (pose.dir === 1) { ctx.translate(chx, 0); ctx.scale(-1, 1); ctx.translate(-chx, 0); }
+            ctx.drawImage(chefImg, chx - cw / 2, c.y + c.h / 2 - chh, cw, chh);
+            ctx.restore();
             var now = s.t / 1000;
             if (now < (s.floorBuffUntil[i] || 0)) {
               ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 3;
-              ctx.beginPath(); ctx.arc(c.x, c.y, 40 + Math.sin(t * 6) * 3, 0, 7); ctx.stroke();
-              text(ctx, 'x2', c.x, c.y - 48, 17, '#ffd54f');
+              ctx.beginPath(); ctx.arc(chx, c.y, 40 + Math.sin(t * 6) * 3, 0, 7); ctx.stroke();
+              text(ctx, 'x2', chx, c.y - 48, 17, '#ffd54f');
             } else if (now < (s.floorCdUntil[i] || 0)) {
               // đang hồi chiêu: không vẽ gì thêm
             }
@@ -295,18 +325,13 @@
               var ph = cyc < 5.5 ? 'waiting' : 'eating';
               drawCustomer(ctx, store, cx, cyb, cu.variant, ph, 0.72);
               if (cyc < 5.5) {
-                bubble(ctx, cx, cyb - 84, 40, 32);
+                bubble(ctx, cx, cyb - 86, 48, 40);
                 var di = store[A.DISH_ICON[cu.dish]];
-                if (di) {
-                  // icon pack bản trắng -> lót đĩa nền tối cho nổi trên bubble trắng
-                  ctx.fillStyle = '#4a2f1d';
-                  ctx.beginPath(); ctx.arc(cx, cyb - 84, 13, 0, 7); ctx.fill();
-                  ctx.drawImage(di, cx - 10, cyb - 94, 20, 20);
-                }
-                else text(ctx, DISH_EMOJI[cu.dish] || '?', cx, cyb - 84, 17, '#8a5a2b');
+                if (di) ctx.drawImage(di, cx - 16, cyb - 102, 32, 32);
+                else text(ctx, DISH_EMOJI[cu.dish] || '?', cx, cyb - 86, 18, '#8a5a2b');
               } else {
-                bubble(ctx, cx, cyb - 84, 34, 26);
-                text(ctx, '...', cx, cyb - 84, 13, '#8a5a2b');
+                bubble(ctx, cx, cyb - 86, 36, 28);
+                text(ctx, '...', cx, cyb - 86, 13, '#8a5a2b');
               }
             })(custs[k]);
           }
@@ -469,7 +494,8 @@
         if (x >= F.btn.x && x <= F.btn.x + F.btn.w && y >= F.btn.y && y <= F.btn.y + F.btn.h)
           return { type: 'floorUp', i: F.i };
         var c = F.chef;
-        if (Math.abs(x - c.x) < 44 && y > c.y - c.h && y < c.y + c.h * 0.7)
+        var poseNow = chefPose(F.i, Date.now() / 1000);
+        if (Math.abs(x - poseNow.x) < 44 && y > c.y - c.h && y < c.y + c.h * 0.7)
           return { type: 'chef', i: F.i };
       }
       if (s.car) {
