@@ -150,8 +150,10 @@
 
     // ================= MÀN NHÀ HÀNG =================
     var LAYOUT = {
-      floorY: 148, chefX: 292, cashierX: 66, counterY: 452,
+      floorY: 148, chefX: 292, cashierX: 66, counterY: 400,
     };
+    // Emoji dự phòng khi icon món ăn chưa kịp tải / thiếu file
+    var DISH_EMOJI = { nigiri: '🍣', maki: '🍙', temaki: '🍱', uramaki: '🍘', sashimi: '🐟', dragon: '🐉' };
     function drawRestaurant(ctx, s, nowMs) {
       var t = nowMs / 1000;
       // nền tường ấm
@@ -245,7 +247,7 @@
           bubble(ctx, bx, by, 52, 40);
           var di2 = c.dish && store[A.DISH_ICON[c.dish]];
           if (di2) ctx.drawImage(di2, bx - 13, by - 14, 26, 26);
-          else text(ctx, '?', bx, by, 18, '#8a5a2b');
+          else text(ctx, DISH_EMOJI[c.dish] || '?', bx, by, 20, '#8a5a2b');
           if (c.phase === 'waiting') { // thanh kiên nhẫn
             var pr2 = c.t / 60;
             ctx.fillStyle = 'rgba(0,0,0,.4)';
