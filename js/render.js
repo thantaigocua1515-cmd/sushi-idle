@@ -355,21 +355,50 @@
     // --- khách hàng: sprite AI-gen theo style kit (store.cust0..3), fallback blob nếu chưa tải ---
     function drawCustomer(ctx, store, x, yBase, variant, phase, scale) {
       scale = scale || 1;
+      var now = Date.now();
       ctx.save();
       ctx.translate(x, yBase);
-      var bob = (phase === 'eating' || phase === 'walking') ? Math.sin(Date.now() / 130) * 2 : 0;
-      ctx.translate(0, bob);
+      // bong do
+      var shScale = 1;
       ctx.fillStyle = 'rgba(0,0,0,.25)';
-      ctx.beginPath(); ctx.ellipse(0, 4, 16, 5, 0, 0, 7); ctx.fill();
-      var img = store['cust' + ((variant || 0) % 4)];
-      if (img) {
-        var h = 66 * scale, w = h * img.width / img.height;
-        ctx.drawImage(img, -w / 2, -h + 4, w, h);
+      if (phase === 'walking') {
+        // animation di bo: chan va than lech nhau (waddle), 4 frame
+        var wt = (now / 140) | 0, wf = wt % 4;
+        var legDx = 0, bodyDx = 0, bob = 0;
+        if (wf === 0) { legDx = -2.5; bodyDx = 1; }
+        else if (wf === 1) { bob = -2.5; }
+        else if (wf === 2) { legDx = 2.5; bodyDx = -1; }
+        else { bob = -2.5; }
+        shScale = 1 - Math.abs(bob) * 0.03;
+        ctx.translate(0, bob * 0.4);
+        ctx.beginPath(); ctx.ellipse(0, 4, 16 * shScale, 5 * shScale, 0, 0, 7); ctx.fill();
+        var img = store['cust' + ((variant || 0) % 4)];
+        if (img) {
+          var h = 66 * scale, w = h * img.width / img.height;
+          var split = 0.64, legH = h * (1 - split), bodyH = h * split;
+          // chan (duoi)
+          ctx.drawImage(img, 0, img.height * split, img.width, img.height * (1 - split),
+            -w / 2 + legDx * scale, -legH + 4, w, legH);
+          // than (tren)
+          ctx.drawImage(img, 0, 0, img.width, img.height * split,
+            -w / 2 + bodyDx * scale, -h + 4, w, bodyH);
+        }
       } else {
-        ctx.fillStyle = '#e08a97';
-        rr(ctx, -13, -34, 26, 26, 9); ctx.fill();
-        ctx.fillStyle = '#ffd9b3';
-        ctx.beginPath(); ctx.arc(0, -44, 12, 0, 7); ctx.fill();
+        // dung yen: tho nhe (phong len/xep xuong)
+        var breathe = (phase === 'idle') ? 1 + Math.sin(now / 550) * 0.018 : 1;
+        var bob2 = (phase === 'eating') ? Math.sin(now / 130) * 2 : 0;
+        ctx.translate(0, bob2);
+        ctx.beginPath(); ctx.ellipse(0, 4, 16, 5, 0, 0, 7); ctx.fill();
+        var img2 = store['cust' + ((variant || 0) % 4)];
+        if (img2) {
+          var h2 = 66 * scale * breathe, w2 = h2 * img2.width / img2.height;
+          ctx.drawImage(img2, -w2 / 2, -h2 + 4, w2, h2);
+        } else {
+          ctx.fillStyle = '#e08a97';
+          rr(ctx, -13, -34, 26, 26, 9); ctx.fill();
+          ctx.fillStyle = '#ffd9b3';
+          ctx.beginPath(); ctx.arc(0, -44, 12, 0, 7); ctx.fill();
+        }
       }
       ctx.restore();
     }
