@@ -17,7 +17,7 @@
 
     // ============ KHÁCH + THANG MÁY + ĐẦU BẾP (render-local, thuần visual) ============
     var KITCHEN_X = 248;
-    var ELEV_SPEED = 150, ELEV_PAUSE = 1.6, CAB_W = 52, CAB_H = 64, DOOR_X = 58;
+    var ELEV_SPEED = 150, ELEV_PAUSE = 1.6, CAB_W = 100, CAB_H = 92, DOOR_X = 112, CASHIER_X = 215;
     var elev = { y: 0, stopIdx: 0, dir: 1, pauseT: 1.2, riders: [], init: false, nStops: 0 };
     var flow = { list: [], nextId: 1, spawnT: 2 };
     var chefSt = {}; // fi -> {mode, x, cookT, serveT, cust}
@@ -30,9 +30,9 @@
     }
     // điểm dừng: 0 = trệt, s>=1 = tầng (s-1) — xếp từ dưới lên để thang đi lên từng tầng
     function elevStops(L) {
-      var stops = [{ y: L.groundY + GROUND_H - 78, floor: -1 }];
+      var stops = [{ y: L.groundY + GROUND_H - 100, floor: -1 }];
       for (var i = 0; i < L.floors.length; i++)
-        stops.push({ y: floorFy(i, L) + FLOOR_H - 78, floor: i });
+        stops.push({ y: floorFy(i, L) + FLOOR_H - 100, floor: i });
       return stops;
     }
     function elevNextDir() {
@@ -72,7 +72,7 @@
       return true;
     }
     function trySpawn(L, N) {
-      if (flow.list.length >= 2 * N) return;
+      if (flow.list.length >= 3 * N) return;
       var free = [];
       for (var i = 0; i < N; i++)
         for (var k = 0; k < 2; k++)
@@ -84,30 +84,39 @@
         variant: (Math.random() * 4) | 0,
         dish: CFG.DISH_IDS[(Math.random() * CFG.DISH_IDS.length) | 0],
         floor: pick.i, spot: pick.k,
-        state: 'toElevator', x: W + 30, y: L.roadY + 55, rideY: 0, eatT: 0,
+        state: 'toElevator', x: W + 30, y: L.roadY + 6, rideY: 0, eatT: 0, payT: 0,
       });
     }
     function updateFlow(dt, L, N) {
       flow.spawnT -= dt;
-      if (flow.spawnT <= 0) { flow.spawnT = 5; trySpawn(L, N); }
+      if (flow.spawnT <= 0) { flow.spawnT = 3; trySpawn(L, N); }
       var stops = elevStops(L);
       var cabFeet = elev.y + CAB_H - 6;
       for (var j = flow.list.length - 1; j >= 0; j--) {
         var cu = flow.list[j];
         switch (cu.state) {
           case 'toElevator':
-            cu.y = L.roadY + 55;
+            cu.y = L.roadY + 6;
             cu.x -= 55 * dt;
             if (cu.x <= DOOR_X) { cu.x = DOOR_X; cu.state = 'waitElevator'; }
             break;
-          case 'waitElevator':
-            cu.y = L.roadY + 55;
-            if (elev.stopIdx === 0 && elev.pauseT > 0 && elevNextDir() === 1 && elev.riders.length < 2) {
+          case 'waitElevator': {
+            cu.y = L.roadY + 6;
+            var q = 0;
+            for (var w = 0; w < flow.list.length; w++) {
+              var o = flow.list[w];
+              if (o.state === 'waitElevator' && o.id < cu.id) q++;
+            }
+            var qx = DOOR_X + q * 38;
+            if (cu.x < qx) cu.x = Math.min(qx, cu.x + 60 * dt);
+            else if (cu.x > qx) cu.x = Math.max(qx, cu.x - 60 * dt);
+            if (q < 2 && elev.stopIdx === 0 && elev.pauseT > 0 && elevNextDir() === 1 && elev.riders.length < 2) {
               cu.state = 'riding'; cu.rideY = cu.y; elev.riders.push(cu);
             }
             break;
+          }
           case 'riding': {
-            cu.rideY += (cabFeet - cu.rideY) * Math.min(1, dt * 8);
+            cu.rideY = cabFeet;
             var st = stops[elev.stopIdx];
             if (st && st.floor === cu.floor && elev.pauseT > 0) {
               var ri = elev.riders.indexOf(cu);
@@ -146,16 +155,28 @@
             }
             break;
           case 'ridingDown': {
-            cu.rideY += (cabFeet - cu.rideY) * Math.min(1, dt * 8);
+            cu.rideY = cabFeet;
             if (elev.stopIdx === 0 && elev.pauseT > 0) {
               var rj = elev.riders.indexOf(cu);
               if (rj >= 0) elev.riders.splice(rj, 1);
-              cu.state = 'exit'; cu.x = DOOR_X; cu.y = L.roadY + 55;
+              cu.state = 'toCashier'; cu.x = DOOR_X; cu.y = L.roadY + 6;
             }
             break;
           }
+          case 'toCashier': {
+            cu.y = L.roadY + 6;
+            var dx3 = CASHIER_X - cu.x, step3 = 60 * dt;
+            if (Math.abs(dx3) <= step3) { cu.x = CASHIER_X; cu.state = 'paying'; cu.payT = 1.4; }
+            else cu.x += (dx3 > 0 ? step3 : -step3);
+            break;
+          }
+          case 'paying':
+            cu.y = L.roadY + 6;
+            cu.payT -= dt;
+            if (cu.payT <= 0) cu.state = 'exit';
+            break;
           case 'exit':
-            cu.y = L.roadY + 55;
+            cu.y = L.roadY + 6;
             cu.x += 55 * dt;
             if (cu.x > W + 40) flow.list.splice(j, 1);
             break;
@@ -510,24 +531,42 @@
         ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(sx + 12, shaftTop + 6); ctx.lineTo(sx + 12, shaftBot - 6); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(sx + sw - 12, shaftTop + 6); ctx.lineTo(sx + sw - 12, shaftBot - 6); ctx.stroke();
-        // cabin rộng 52, căn giữa shaft; dừng theo điểm dừng (updateElev)
-        var cabY = elev.y, cabX = sx + sw / 2 - CAB_W / 2;
+        // cabin kieu kit: go nau + vien vang, du cho Lift Guy + 2 khach (khong thu nho)
+        var cabY = elev.y, cabX = 2;
         if (cabY + CAB_H < VIEW_TOP - 60 || cabY > VIEW_BOTTOM + 60) return;
-        ctx.fillStyle = '#3a2a18';
-        rr(ctx, cabX, cabY, CAB_W, CAB_H, 6); ctx.fill();
-        // Lift Guy + khách trong cabin
+        var feetY = cabY + CAB_H - 8;
+        // day treo tu shaft
+        ctx.fillStyle = '#20140c';
+        ctx.fillRect(sx + sw / 2 - 4, cabY - 26, 8, 28);
+        // mai cabin kieu Nhat
+        ctx.fillStyle = '#4a2c17';
+        ctx.beginPath();
+        ctx.moveTo(cabX - 6, cabY + 10); ctx.lineTo(cabX + CAB_W / 2, cabY - 12); ctx.lineTo(cabX + CAB_W + 6, cabY + 10);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#2e1a0d'; ctx.lineWidth = 2; ctx.stroke();
+        // than cabin: khung go
+        ctx.fillStyle = '#6b4226';
+        rr(ctx, cabX, cabY, CAB_W, CAB_H, 8); ctx.fill();
+        // kinh truoc (nhin thay ben trong)
+        ctx.fillStyle = 'rgba(30,45,60,.55)';
+        rr(ctx, cabX + 8, cabY + 10, CAB_W - 16, CAB_H - 20, 5); ctx.fill();
+        // Lift Guy ben trai
         var lg = A.anim(delivF, t, 6);
         if (lg) {
-          var lw = 24, lh = lw * lg.height / lg.width;
-          ctx.drawImage(lg, cabX + 4, cabY + CAB_H - 4 - lh, lw, lh);
+          var lw = 26, lh = lw * lg.height / lg.width;
+          ctx.drawImage(lg, cabX + 10, feetY - lh, lw, lh);
         }
+        // khach trong cabin: giu nguyen kich thuoc
         for (var r = 0; r < elev.riders.length; r++) {
           var rc = elev.riders[r];
-          drawCustomer(ctx, store, cabX + 35 + r * 13, rc.rideY || (cabY + CAB_H - 6), rc.variant, 'idle', 0.42);
+          drawCustomer(ctx, store, cabX + 48 + r * 26, rc.rideY || feetY, rc.variant, 'idle', 0.62);
         }
-        // viền cabin đè lên trên cho gọn
+        // vien vang + thanh doc go
         ctx.strokeStyle = '#e8b32a'; ctx.lineWidth = 3;
-        rr(ctx, cabX, cabY, CAB_W, CAB_H, 6); ctx.stroke();
+        rr(ctx, cabX, cabY, CAB_W, CAB_H, 8); ctx.stroke();
+        ctx.strokeStyle = '#4a2c17'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(cabX, cabY + 4); ctx.lineTo(cabX, cabY + CAB_H - 4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cabX + CAB_W, cabY + 4); ctx.lineTo(cabX + CAB_W, cabY + CAB_H - 4); ctx.stroke();
       })();
 
       // --- đường + xe ---
@@ -587,13 +626,20 @@
 
       // --- khách ở mặt đất: đi tới / đợi / rời thang máy ---
       (function () {
-        var gyb = L.roadY + 55;
+        var gyb = L.roadY + 6;
         if (gyb > VIEW_BOTTOM + 40 || gyb < VIEW_TOP - 40) return;
         for (var j = 0; j < flow.list.length; j++) {
           var cu = flow.list[j];
-          if (cu.state !== 'toElevator' && cu.state !== 'waitElevator' && cu.state !== 'exit') continue;
-          drawCustomer(ctx, store, cu.x, gyb, cu.variant,
-            cu.state === 'waitElevator' ? 'idle' : 'walking', 0.72);
+          if (cu.state !== 'toElevator' && cu.state !== 'waitElevator' && cu.state !== 'toCashier' &&
+              cu.state !== 'paying' && cu.state !== 'exit') continue;
+          var php = (cu.state === 'waitElevator' || cu.state === 'paying') ? 'idle' : 'walking';
+          drawCustomer(ctx, store, cu.x, gyb, cu.variant, php, 0.72);
+          if (cu.state === 'paying') {
+            bubble(ctx, cu.x, gyb - 78, 34, 28);
+            var coinI = store.coin;
+            if (coinI) ctx.drawImage(coinI, cu.x - 11, gyb - 92, 22, 22);
+            else text(ctx, '$', cu.x, gyb - 78, 15, '#8a5a2b');
+          }
         }
       })();
 
