@@ -50,10 +50,25 @@
         elev.pauseT -= dt;
         elev.y = target;
         if (elev.pauseT <= 0) {
-          var nx = elev.stopIdx + elev.dir;
-          if (nx >= stops.length) { elev.dir = -1; nx = elev.stopIdx - 1; }
-          else if (nx < 0) { elev.dir = 1; nx = elev.stopIdx + 1; }
-          elev.stopIdx = nx;
+          // thang may thong minh: chi ghe diem co demand, bo qua tang trong
+          var best = -1, step, idx;
+          for (step = 1; step < stops.length; step++) {
+            idx = elev.stopIdx + elev.dir * step;
+            if (idx < 0 || idx >= stops.length) break;
+            if (stopHasDemand(idx, stops)) { best = idx; break; }
+          }
+          if (best === -1) {
+            elev.dir *= -1;
+            for (step = 1; step < stops.length; step++) {
+              idx = elev.stopIdx + elev.dir * step;
+              if (idx < 0 || idx >= stops.length) break;
+              if (stopHasDemand(idx, stops)) { best = idx; break; }
+            }
+          }
+          if (best === -1) {
+            if (elev.stopIdx !== 0) { best = 0; elev.dir = -1; } // ve tret don khach
+            else { elev.pauseT = 0.6; return; } // cho o tret
+          } else elev.stopIdx = best;
         }
         return;
       }
@@ -63,6 +78,23 @@
       else elev.y += (d > 0 ? step : -step);
     }
 
+    function stopHasDemand(idx, stops) {
+      var fl = stops[idx].floor, j;
+      if (fl === -1) {
+        for (j = 0; j < flow.list.length; j++) if (flow.list[j].state === 'waitElevator') return true;
+        for (j = 0; j < elev.riders.length; j++) if (elev.riders[j].state === 'ridingDown') return true;
+        return false;
+      }
+      for (j = 0; j < flow.list.length; j++) {
+        var c = flow.list[j];
+        if (c.state === 'waitDown' && c.floor === fl) return true;
+      }
+      for (j = 0; j < elev.riders.length; j++) {
+        var rd = elev.riders[j];
+        if (rd.state === 'riding' && rd.floor === fl) return true;
+      }
+      return false;
+    }
     function spotFree(i, k) {
       for (var j = 0; j < flow.list.length; j++) {
         var c = flow.list[j];
@@ -84,7 +116,7 @@
         variant: (Math.random() * 4) | 0,
         dish: CFG.DISH_IDS[(Math.random() * CFG.DISH_IDS.length) | 0],
         floor: pick.i, spot: pick.k,
-        state: 'toElevator', x: W + 30, y: L.roadY + 6, rideY: 0, eatT: 0, payT: 0,
+        state: 'toElevator', x: W + 30, y: L.roadY - 8, rideY: 0, eatT: 0, payT: 0, chat: pickDialogue(),
       });
     }
     function updateFlow(dt, L, N) {
@@ -96,12 +128,12 @@
         var cu = flow.list[j];
         switch (cu.state) {
           case 'toElevator':
-            cu.y = L.roadY + 6;
+            cu.y = L.roadY - 8;
             cu.x -= 55 * dt;
             if (cu.x <= DOOR_X) { cu.x = DOOR_X; cu.state = 'waitElevator'; }
             break;
           case 'waitElevator': {
-            cu.y = L.roadY + 6;
+            cu.y = L.roadY - 8;
             var q = 0;
             for (var w = 0; w < flow.list.length; w++) {
               var o = flow.list[w];
@@ -159,24 +191,24 @@
             if (elev.stopIdx === 0 && elev.pauseT > 0) {
               var rj = elev.riders.indexOf(cu);
               if (rj >= 0) elev.riders.splice(rj, 1);
-              cu.state = 'toCashier'; cu.x = DOOR_X; cu.y = L.roadY + 6;
+              cu.state = 'toCashier'; cu.x = DOOR_X; cu.y = L.roadY - 8;
             }
             break;
           }
           case 'toCashier': {
-            cu.y = L.roadY + 6;
+            cu.y = L.roadY - 8;
             var dx3 = CASHIER_X - cu.x, step3 = 60 * dt;
             if (Math.abs(dx3) <= step3) { cu.x = CASHIER_X; cu.state = 'paying'; cu.payT = 1.4; }
             else cu.x += (dx3 > 0 ? step3 : -step3);
             break;
           }
           case 'paying':
-            cu.y = L.roadY + 6;
+            cu.y = L.roadY - 8;
             cu.payT -= dt;
             if (cu.payT <= 0) cu.state = 'exit';
             break;
           case 'exit':
-            cu.y = L.roadY + 6;
+            cu.y = L.roadY - 8;
             cu.x += 55 * dt;
             if (cu.x > W + 40) flow.list.splice(j, 1);
             break;
@@ -352,6 +384,19 @@
       ctx.closePath(); ctx.fill(); ctx.stroke();
     }
 
+    var DIALOGUES = [
+      'Ngon quá!', 'Tươi rói!', 'Chill quá!', 'Thèm quá đi!',
+      'Đỉnh thật!', 'Mê món này!', 'Lần sau tới nữa!', 'Quá đã!',
+      'Nước chấm ngon!', 'Cơm dẻo quá!', 'Ăn hoài không ngán!', 'Tuyệt vời!'
+    ];
+    var lastDialogue = -1;
+    function pickDialogue() {
+      var i, tries = 0;
+      do { i = (Math.random() * DIALOGUES.length) | 0; tries++; }
+      while (i === lastDialogue && tries < 5);
+      lastDialogue = i;
+      return DIALOGUES[i];
+    }
     var DISH_EMOJI = { nigiri: '🍣', maki: '🍙', temaki: '🍱', uramaki: '🍘', sashimi: '🐟', dragon: '🐉' };
 
     // ---- layout tháp (dùng chung cho vẽ + hitTest) ----
@@ -502,8 +547,10 @@
               if (di) ctx.drawImage(di, cu.x - 16, cyb - 102, 32, 32);
               else text(ctx, DISH_EMOJI[cu.dish] || '?', cu.x, cyb - 86, 18, '#8a5a2b');
             } else if (cu.state === 'eating') {
-              bubble(ctx, cu.x, cyb - 86, 36, 28);
-              text(ctx, '...', cu.x, cyb - 86, 13, '#8a5a2b');
+              var msg = cu.chat || 'Ngon quá!';
+              var bw = 24 + msg.length * 7;
+              bubble(ctx, cu.x, cyb - 88, bw, 30);
+              text(ctx, msg, cu.x, cyb - 88, 12, '#8a5a2b');
             }
           }
         })(L.floors[fi]);
@@ -517,6 +564,11 @@
         var lv = Math.max(1, Math.min(6, Math.ceil(s.staff.cashier / 4) || 1));
         var img = store['cashierL' + lv] || store.cashierL1;
         if (img) ctx.drawImage(img, 0, gy, W, GROUND_H);
+        // vỉa hè trước tòa nhà (khách đi bộ ở đây, tách khỏi lòng đường)
+        var sy = L.roadY - 30;
+        ctx.fillStyle = '#a8aeb8'; ctx.fillRect(0, sy, W, 30);
+        ctx.fillStyle = '#8f959f'; ctx.fillRect(0, sy, W, 4);
+        ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(0, sy + 4, W, 2);
       })();
 
       // --- thang máy (vẽ SAU tòa tầng trệt để thấy rõ khách lên/xuống ở trệt) ---
@@ -584,7 +636,7 @@
         }
         // 5 xe ambient, 2 làn — sprite xe quay mặt TRÁI sẵn:
         // làn trên đi sang trái (không lật), làn dưới đi sang phải (lật ngang)
-        var lanes = [ry + 26, ry + 58];
+        var lanes = [ry + 34, ry + 64];
         var laneCars = [[0, 2, 4], [1, 3]];
         var carSpeed = 52, span = W + 320;
         var orderX = s.car ? s.car.x * W : null;
@@ -600,7 +652,7 @@
               ? ((t * carSpeed + off) % span) - 160
               : span - 160 - ((t * carSpeed + off) % span);
             if (orderX !== null && Math.abs(x + 52 - orderX) < 150) continue; // tránh xe đơn drive-thru
-            var cw = 104, ch = cw * img.height / img.width;
+            var cw = 92, ch = cw * img.height / img.width;
             var cy2 = lanes[li];
             ctx.save();
             if (right) { ctx.translate(x + cw / 2, 0); ctx.scale(-1, 1); ctx.translate(-(x + cw / 2), 0); }
@@ -626,7 +678,7 @@
 
       // --- khách ở mặt đất: đi tới / đợi / rời thang máy ---
       (function () {
-        var gyb = L.roadY + 6;
+        var gyb = L.roadY - 8;
         if (gyb > VIEW_BOTTOM + 40 || gyb < VIEW_TOP - 40) return;
         for (var j = 0; j < flow.list.length; j++) {
           var cu = flow.list[j];
@@ -635,10 +687,8 @@
           var php = (cu.state === 'waitElevator' || cu.state === 'paying') ? 'idle' : 'walking';
           drawCustomer(ctx, store, cu.x, gyb, cu.variant, php, 0.72);
           if (cu.state === 'paying') {
-            bubble(ctx, cu.x, gyb - 78, 34, 28);
-            var coinI = store.coin;
-            if (coinI) ctx.drawImage(coinI, cu.x - 11, gyb - 92, 22, 22);
-            else text(ctx, '$', cu.x, gyb - 78, 15, '#8a5a2b');
+            bubble(ctx, cu.x, gyb - 80, 74, 30);
+            text(ctx, 'Cảm ơn!', cu.x, gyb - 80, 12, '#8a5a2b');
           }
         }
       })();
