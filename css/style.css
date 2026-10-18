@@ -84,13 +84,16 @@ html, body {
 
 /* Nút quay về tháp trên màn bản đồ */
 #mapBack {
-  position: absolute; top: 78px; left: max(12px, calc(50% - 183px)); width: 46px; height: 46px; border-radius: 50%;
-  background: rgba(20,12,6,.78); border: 2px solid #8a5a2b; color: #ffd9a0;
-  font-size: 26px; line-height: 1; z-index: 6; display: none; cursor: pointer;
-  font-family: 'Bebas Neue', sans-serif; padding-bottom: 4px;
+  position: absolute; top: 78px; left: max(12px, calc(50% - 183px)); width: 50px; height: 50px; border-radius: 50%;
+  background: linear-gradient(180deg, #ffc233 0%, #ff9a1f 55%, #ef7d0c 100%);
+  border: 3px solid #7a4a1f; color: #fff8ea;
+  font-size: 30px; line-height: 1; z-index: 6; display: none; cursor: pointer;
+  font-family: 'Bebas Neue', sans-serif; padding-bottom: 5px; padding-right: 2px;
+  text-shadow: 0 2px 2px rgba(122,74,31,.65);
+  box-shadow: inset 0 2px 3px rgba(255,255,255,.55), 0 3px 0 #a8641a, 0 5px 10px rgba(0,0,0,.35);
 }
 #mapBack.show { display: block; }
-#mapBack:active { transform: scale(.93); }
+#mapBack:active { transform: translateY(2px); box-shadow: inset 0 2px 3px rgba(255,255,255,.4), 0 1px 0 #a8641a; }
 
 /* ---------- Popup khung mái ngói ---------- */
 #popup, #shopModal {
@@ -241,12 +244,63 @@ button.buy:disabled { filter: grayscale(1); opacity: .6; cursor: default; }
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ---------- loading ---------- */
+/* ---------- loading (phong cách kit) ---------- */
 #loading {
-  position: absolute; inset: 0; z-index: 30; background: #1b5f9e;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 390px; max-width: 100vw; z-index: 30;
+  background: linear-gradient(180deg, #2f9be8 0%, #7cc4f5 55%, #c4e7fb 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  overflow: hidden;
 }
-.load-title { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 6px; color: #ffb300; }
-#loadText { color: #ffe9b8; font-size: 15px; }
-.load-track { width: 220px; height: 14px; border-radius: 7px; background: #0d3a63; border: 2px solid #ffb300; overflow: hidden; }
-#loadBar { height: 100%; width: 0%; background: linear-gradient(90deg, #ffb300, #ff8f00); transition: width .2s; }
+#loading.hidden { display: none; }
+.load-clouds i {
+  position: absolute; background: rgba(255,255,255,.92); border-radius: 999px;
+  animation: loadDrift linear infinite;
+}
+.load-clouds .c1 { width: 130px; height: 34px; top: 12%; animation-duration: 26s; }
+.load-clouds .c2 { width: 90px; height: 24px; top: 24%; animation-duration: 38s; animation-delay: -12s; }
+.load-clouds .c3 { width: 160px; height: 40px; top: 66%; animation-duration: 32s; animation-delay: -20s; opacity: .8; }
+@keyframes loadDrift { from { left: -180px; } to { left: 110%; } }
+/* mái ngói Nhật */
+.load-roof {
+  width: 300px; height: 36px; background: #4a2c17;
+  clip-path: polygon(6% 100%, 0 45%, 50% 0, 100% 45%, 94% 100%);
+  border-bottom: 5px solid #2e1a0d; margin-bottom: -14px; z-index: 2;
+}
+/* icon nigiri vẽ bằng CSS */
+.load-nigiri { position: relative; width: 92px; height: 66px; }
+.load-nigiri .rice {
+  position: absolute; bottom: 0; left: 4px; width: 84px; height: 42px;
+  background: #fffdf6; border: 3px solid #4a2c17; border-radius: 16px;
+}
+.load-nigiri .fish {
+  position: absolute; top: 2px; left: 11px; width: 70px; height: 34px;
+  background: linear-gradient(180deg, #ffa14f, #f07d1a);
+  border: 3px solid #4a2c17; border-radius: 50%;
+}
+.load-nigiri .fish::after {
+  content: ''; position: absolute; left: 12px; top: 6px; width: 40px; height: 8px;
+  background: rgba(255,255,255,.45); border-radius: 999px; transform: rotate(-8deg);
+}
+/* biển hiệu kiểu SUSHI TOWER */
+.load-signboard {
+  background: #2b3a4a; border: 3px solid #1d2836; border-radius: 16px;
+  padding: 8px 26px 6px; box-shadow: 0 5px 0 rgba(0,0,0,.25);
+  display: flex; align-items: baseline; gap: 10px;
+}
+.load-signboard .l-sushi { font-family: 'Lilita One', sans-serif; font-size: 46px; color: #ffd54f; text-shadow: 0 3px 0 #a8641a; }
+.load-signboard .l-idle { font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 4px; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.4); }
+.load-sub { font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 5px; color: #7a4a1f; }
+/* thanh load kiểu gỗ */
+.load-track {
+  width: 250px; height: 22px; border-radius: 12px; overflow: hidden;
+  background: #3d2412; border: 3px solid #6b4226;
+  box-shadow: inset 0 3px 6px rgba(0,0,0,.5), 0 2px 0 rgba(255,255,255,.35);
+}
+#loadBar {
+  height: 100%; width: 0%;
+  background: repeating-linear-gradient(-55deg, rgba(255,255,255,.22) 0 10px, transparent 10px 20px),
+              linear-gradient(180deg, #ffc233, #ff8f00);
+  transition: width .2s;
+}
+#loadText { color: #5d3a1a; font-size: 15px; font-weight: bold; }

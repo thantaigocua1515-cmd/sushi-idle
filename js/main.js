@@ -70,8 +70,11 @@
 
   async function boot() {
     var bar = document.getElementById('loadBar');
+    var txt = document.getElementById('loadText');
     var store = await window.SushiAssets.loadAll(function (done, total) {
-      bar.style.width = Math.round(done / total * 100) + '%';
+      var pct = Math.round(done / total * 100);
+      bar.style.width = pct + '%';
+      txt.textContent = 'Đang tải... ' + pct + '%';
     });
 
     var renderer = window.SushiRender.createRenderer(store);
