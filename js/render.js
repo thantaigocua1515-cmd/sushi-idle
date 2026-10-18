@@ -15,26 +15,193 @@
     var chefCook = A.frames(store, 'chefCook', 20);
     var chefServe = A.frames(store, 'chefServe', 20);
 
-    // Vị trí đầu bếp theo thời gian: nấu ở bếp, bưng món (Walk Full Order) giao cho khách
-    // chu kỳ khách 11s: giao món lúc cyc 4.0->6.7 (khách bắt đầu ăn ở 5.5)
+    // ============ KHÁCH + THANG MÁY + ĐẦU BẾP (render-local, thuần visual) ============
     var KITCHEN_X = 248;
-    function chefPose(fi, t) {
-      var custs = ambCustomers(fi);
-      for (var k = 0; k < custs.length; k++) {
-        var cyc = (t + custs[k].off) % 11;
-        if (cyc > 9.5) continue;
-        var cx = custs[k].x + 38; // đứng cạnh khách, không đè lên
-        if (cyc >= 4.0 && cyc < 5.2) {
-          var p = (cyc - 4.0) / 1.2;
-          return { x: KITCHEN_X + (cx - KITCHEN_X) * p, mode: 'go', dir: -1 };
+    var ELEV_SPEED = 150, ELEV_PAUSE = 1.6, CAB_W = 52, CAB_H = 64, DOOR_X = 58;
+    var elev = { y: 0, stopIdx: 0, dir: 1, pauseT: 1.2, riders: [], init: false, nStops: 0 };
+    var flow = { list: [], nextId: 1, spawnT: 2 };
+    var chefSt = {}; // fi -> {mode, x, cookT, serveT, cust}
+    var lastNow = 0;
+
+    function tableSpots() { return [92, 172]; }
+    function floorFy(i, L) {
+      for (var f = 0; f < L.floors.length; f++) if (L.floors[f].i === i) return L.floors[f].fy;
+      return 0;
+    }
+    // điểm dừng: 0 = trệt, s>=1 = tầng (s-1) — xếp từ dưới lên để thang đi lên từng tầng
+    function elevStops(L) {
+      var stops = [{ y: L.groundY + GROUND_H - 78, floor: -1 }];
+      for (var i = 0; i < L.floors.length; i++)
+        stops.push({ y: floorFy(i, L) + FLOOR_H - 78, floor: i });
+      return stops;
+    }
+    function elevNextDir() {
+      if (elev.stopIdx <= 0) return 1;
+      if (elev.stopIdx >= elev.nStops - 1) return -1;
+      return elev.dir;
+    }
+    function updateElev(dt, L) {
+      var stops = elevStops(L);
+      elev.nStops = stops.length;
+      if (elev.stopIdx > stops.length - 1) elev.stopIdx = stops.length - 1;
+      if (!elev.init) { elev.y = stops[0].y; elev.init = true; }
+      var target = stops[elev.stopIdx].y;
+      if (elev.pauseT > 0) {
+        elev.pauseT -= dt;
+        elev.y = target;
+        if (elev.pauseT <= 0) {
+          var nx = elev.stopIdx + elev.dir;
+          if (nx >= stops.length) { elev.dir = -1; nx = elev.stopIdx - 1; }
+          else if (nx < 0) { elev.dir = 1; nx = elev.stopIdx + 1; }
+          elev.stopIdx = nx;
         }
-        if (cyc >= 5.2 && cyc < 5.5) return { x: cx, mode: 'serve', dir: -1 };
-        if (cyc >= 5.5 && cyc < 6.7) {
-          var p2 = (cyc - 5.5) / 1.2;
-          return { x: cx + (KITCHEN_X - cx) * p2, mode: 'back', dir: 1 };
+        return;
+      }
+      var d = target - elev.y;
+      var step = ELEV_SPEED * dt;
+      if (Math.abs(d) <= step) { elev.y = target; elev.pauseT = ELEV_PAUSE; }
+      else elev.y += (d > 0 ? step : -step);
+    }
+
+    function spotFree(i, k) {
+      for (var j = 0; j < flow.list.length; j++) {
+        var c = flow.list[j];
+        if (c.floor === i && c.spot === k &&
+            (c.state === 'toTable' || c.state === 'ordering' || c.state === 'eating')) return false;
+      }
+      return true;
+    }
+    function trySpawn(L, N) {
+      if (flow.list.length >= 2 * N) return;
+      var free = [];
+      for (var i = 0; i < N; i++)
+        for (var k = 0; k < 2; k++)
+          if (spotFree(i, k)) free.push({ i: i, k: k });
+      if (!free.length) return;
+      var pick = free[(Math.random() * free.length) | 0];
+      flow.list.push({
+        id: flow.nextId++,
+        variant: (Math.random() * 4) | 0,
+        dish: CFG.DISH_IDS[(Math.random() * CFG.DISH_IDS.length) | 0],
+        floor: pick.i, spot: pick.k,
+        state: 'toElevator', x: W + 30, y: L.roadY + 55, rideY: 0, eatT: 0,
+      });
+    }
+    function updateFlow(dt, L, N) {
+      flow.spawnT -= dt;
+      if (flow.spawnT <= 0) { flow.spawnT = 5; trySpawn(L, N); }
+      var stops = elevStops(L);
+      var cabFeet = elev.y + CAB_H - 6;
+      for (var j = flow.list.length - 1; j >= 0; j--) {
+        var cu = flow.list[j];
+        switch (cu.state) {
+          case 'toElevator':
+            cu.y = L.roadY + 55;
+            cu.x -= 55 * dt;
+            if (cu.x <= DOOR_X) { cu.x = DOOR_X; cu.state = 'waitElevator'; }
+            break;
+          case 'waitElevator':
+            cu.y = L.roadY + 55;
+            if (elev.stopIdx === 0 && elev.pauseT > 0 && elevNextDir() === 1 && elev.riders.length < 2) {
+              cu.state = 'riding'; cu.rideY = cu.y; elev.riders.push(cu);
+            }
+            break;
+          case 'riding': {
+            cu.rideY += (cabFeet - cu.rideY) * Math.min(1, dt * 8);
+            var st = stops[elev.stopIdx];
+            if (st && st.floor === cu.floor && elev.pauseT > 0) {
+              var ri = elev.riders.indexOf(cu);
+              if (ri >= 0) elev.riders.splice(ri, 1);
+              cu.state = 'toTable'; cu.x = DOOR_X;
+            }
+            break;
+          }
+          case 'toTable': {
+            cu.y = floorFy(cu.floor, L) + FLOOR_H - 8;
+            var tx = tableSpots()[cu.spot], dx = tx - cu.x, step = 60 * dt;
+            if (Math.abs(dx) <= step) { cu.x = tx; cu.state = 'ordering'; }
+            else cu.x += (dx > 0 ? step : -step);
+            break;
+          }
+          case 'ordering':
+            cu.y = floorFy(cu.floor, L) + FLOOR_H - 8;
+            break; // đầu bếp xử lý chuyển sang eating
+          case 'eating':
+            cu.y = floorFy(cu.floor, L) + FLOOR_H - 8;
+            cu.eatT -= dt;
+            if (cu.eatT <= 0) cu.state = 'toShaft';
+            break;
+          case 'toShaft': {
+            cu.y = floorFy(cu.floor, L) + FLOOR_H - 8;
+            var dx2 = DOOR_X - cu.x, step2 = 60 * dt;
+            if (Math.abs(dx2) <= step2) { cu.x = DOOR_X; cu.state = 'waitDown'; }
+            else cu.x += (dx2 > 0 ? step2 : -step2);
+            break;
+          }
+          case 'waitDown':
+            cu.y = floorFy(cu.floor, L) + FLOOR_H - 8;
+            if (stops[elev.stopIdx] && stops[elev.stopIdx].floor === cu.floor &&
+                elev.pauseT > 0 && elevNextDir() === -1 && elev.riders.length < 2) {
+              cu.state = 'ridingDown'; cu.rideY = cu.y; elev.riders.push(cu);
+            }
+            break;
+          case 'ridingDown': {
+            cu.rideY += (cabFeet - cu.rideY) * Math.min(1, dt * 8);
+            if (elev.stopIdx === 0 && elev.pauseT > 0) {
+              var rj = elev.riders.indexOf(cu);
+              if (rj >= 0) elev.riders.splice(rj, 1);
+              cu.state = 'exit'; cu.x = DOOR_X; cu.y = L.roadY + 55;
+            }
+            break;
+          }
+          case 'exit':
+            cu.y = L.roadY + 55;
+            cu.x += 55 * dt;
+            if (cu.x > W + 40) flow.list.splice(j, 1);
+            break;
         }
       }
-      return { x: KITCHEN_X, mode: 'cook', dir: -1 };
+    }
+
+    function chefState(fi) {
+      if (!chefSt[fi]) chefSt[fi] = { mode: 'idle', x: KITCHEN_X, cookT: 0, serveT: 0, cust: null };
+      return chefSt[fi];
+    }
+    function chefX(fi) { return chefState(fi).x; }
+    function updateChefs(dt, N) {
+      for (var fi = 0; fi < N; fi++) {
+        var cs = chefState(fi);
+        if (cs.mode === 'idle') {
+          var target = null;
+          for (var j = 0; j < flow.list.length; j++) {
+            var c = flow.list[j];
+            if (c.floor === fi && c.state === 'ordering') { target = c; break; }
+          }
+          if (target) { cs.mode = 'cooking'; cs.cookT = 2.5; cs.cust = target; }
+        } else if (cs.mode === 'cooking') {
+          cs.cookT -= dt;
+          if (!cs.cust || cs.cust.state !== 'ordering') { cs.mode = 'idle'; cs.cust = null; }
+          else if (cs.cookT <= 0) cs.mode = 'toCust';
+        } else if (cs.mode === 'toCust') {
+          var cu = cs.cust;
+          if (!cu || cu.state !== 'ordering') { cs.mode = 'idle'; cs.cust = null; }
+          else {
+            var tx = tableSpots()[cu.spot] + 38, d = tx - cs.x, step = 95 * dt;
+            if (Math.abs(d) <= step) { cs.x = tx; cs.mode = 'serve'; cs.serveT = 0.5; }
+            else cs.x += (d > 0 ? step : -step);
+          }
+        } else if (cs.mode === 'serve') {
+          cs.serveT -= dt;
+          if (cs.serveT <= 0) {
+            if (cs.cust && cs.cust.state === 'ordering') { cs.cust.state = 'eating'; cs.cust.eatT = 4; }
+            cs.cust = null; cs.mode = 'back';
+          }
+        } else if (cs.mode === 'back') {
+          var d2 = KITCHEN_X - cs.x, step2 = 95 * dt;
+          if (Math.abs(d2) <= step2) { cs.x = KITCHEN_X; cs.mode = 'idle'; }
+          else cs.x += (d2 > 0 ? step2 : -step2);
+        }
+      }
     }
     var chefWalk = A.frames(store, 'chefWalk', 20);
     var cashierF = A.frames(store, 'cashier', 40);
@@ -137,7 +304,7 @@
       scale = scale || 1;
       ctx.save();
       ctx.translate(x, yBase);
-      var bob = phase === 'eating' ? Math.sin(Date.now() / 130) * 2 : 0;
+      var bob = (phase === 'eating' || phase === 'walking') ? Math.sin(Date.now() / 130) * 2 : 0;
       ctx.translate(0, bob);
       ctx.fillStyle = 'rgba(0,0,0,.25)';
       ctx.beginPath(); ctx.ellipse(0, 4, 16, 5, 0, 0, 7); ctx.fill();
@@ -165,22 +332,6 @@
     }
 
     var DISH_EMOJI = { nigiri: '🍣', maki: '🍙', temaki: '🍱', uramaki: '🍘', sashimi: '🐟', dragon: '🐉' };
-    var CUST_COLORS = ['#ff8a80', '#82b1ff', '#b9f6ca', '#ce93d8', '#ffcc80', '#80deea'];
-
-    // khách ambient mỗi tầng (thuần visual, render-local)
-    function ambCustomers(idx) {
-      var out = [];
-      for (var k = 0; k < 2; k++) {
-        out.push({
-          x: 78 + k * 68,
-          color: CUST_COLORS[(idx * 2 + k) % CUST_COLORS.length],
-          variant: (idx * 2 + k) % 4,
-          dish: CFG.DISH_IDS[(idx * 2 + k) % CFG.DISH_IDS.length],
-          off: k * 5.5,
-        });
-      }
-      return out;
-    }
 
     // ---- layout tháp (dùng chung cho vẽ + hitTest) ----
     function towerLayout(s, ui) {
@@ -209,7 +360,7 @@
     }
 
     // ================= MÀN THÁP =================
-    function drawTower(ctx, s, ui, nowMs) {
+    function drawTower(ctx, s, ui, nowMs, L) {
       var t = nowMs / 1000;
       var N = s.floors.length;
 
@@ -245,9 +396,6 @@
         }
         ctx.globalAlpha = 1;
       }
-
-      var L = towerLayout(s, ui);
-      ui.towerScroll = L.scroll; // clamp
 
       // --- thanh THÊM TẦNG ---
       (function () {
@@ -292,17 +440,19 @@
           }
           if (lvl >= CFG.MAX_FLOOR_LEVEL) text(ctx, 'MAX', b.x + b.w / 2, b.y + b.h + 10, 12, '#ffd54f', 'Bebas Neue');
 
-          // đầu bếp trong tầng: nấu ở bếp, bưng món giao cho khách rồi quay về
+          // đầu bếp: idle đứng đợi, có đơn mới nấu rồi bưng khay đi giao
           var c = F.chef;
-          var pose = chefPose(i, t);
-          var chefImg = pose.mode === 'cook' ? A.anim(chefCook, t + i * 1.7, 8)
-            : pose.mode === 'serve' ? (chefServe[0] || null)
-            : A.anim(chefServe, t * 9, 9);
+          var cs = chefState(i);
+          var chx = cs.x;
+          var chefImg;
+          if (cs.mode === 'idle') chefImg = chefCook[0] || null;
+          else if (cs.mode === 'cooking') chefImg = A.anim(chefCook, t + i * 1.7, 8);
+          else if (cs.mode === 'serve') chefImg = chefServe[0] || null;
+          else chefImg = A.anim(chefServe, t * 9, 9); // toCust, back
           if (chefImg) {
             var chh = c.h, cw = chh * chefImg.width / chefImg.height;
-            var chx = pose.x;
             ctx.save();
-            if (pose.dir === 1) { ctx.translate(chx, 0); ctx.scale(-1, 1); ctx.translate(-chx, 0); }
+            if (cs.mode === 'back') { ctx.translate(chx, 0); ctx.scale(-1, 1); ctx.translate(-chx, 0); }
             ctx.drawImage(chefImg, chx - cw / 2, c.y + c.h / 2 - chh, cw, chh);
             ctx.restore();
             var now = s.t / 1000;
@@ -315,30 +465,40 @@
             }
           }
 
-          // khách ambient
-          var custs = ambCustomers(i);
-          for (var k = 0; k < custs.length; k++) {
-            (function (cu) {
-              var cyc = (t + cu.off) % 11;
-              if (cyc > 9.5) return; // vắng 1 lúc
-              var cx = cu.x, cyb = fy + FLOOR_H - 8;
-              var ph = cyc < 5.5 ? 'waiting' : 'eating';
-              drawCustomer(ctx, store, cx, cyb, cu.variant, ph, 0.72);
-              if (cyc < 5.5) {
-                bubble(ctx, cx, cyb - 86, 48, 40);
-                var di = store[A.DISH_ICON[cu.dish]];
-                if (di) ctx.drawImage(di, cx - 16, cyb - 102, 32, 32);
-                else text(ctx, DISH_EMOJI[cu.dish] || '?', cx, cyb - 86, 18, '#8a5a2b');
-              } else {
-                bubble(ctx, cx, cyb - 86, 36, 28);
-                text(ctx, '...', cx, cyb - 86, 13, '#8a5a2b');
-              }
-            })(custs[k]);
+          // khách theo luồng thang máy (render-local)
+          for (var cj = 0; cj < flow.list.length; cj++) {
+            var cu = flow.list[cj];
+            if (cu.floor !== i) continue;
+            if (cu.state !== 'toTable' && cu.state !== 'ordering' && cu.state !== 'eating' &&
+                cu.state !== 'toShaft' && cu.state !== 'waitDown') continue;
+            var cyb = fy + FLOOR_H - 8;
+            var ph = cu.state === 'eating' ? 'eating'
+              : (cu.state === 'toTable' || cu.state === 'toShaft') ? 'walking' : 'idle';
+            drawCustomer(ctx, store, cu.x, cyb, cu.variant, ph, 0.72);
+            if (cu.state === 'ordering') {
+              bubble(ctx, cu.x, cyb - 86, 48, 40);
+              var di = store[A.DISH_ICON[cu.dish]];
+              if (di) ctx.drawImage(di, cu.x - 16, cyb - 102, 32, 32);
+              else text(ctx, DISH_EMOJI[cu.dish] || '?', cu.x, cyb - 86, 18, '#8a5a2b');
+            } else if (cu.state === 'eating') {
+              bubble(ctx, cu.x, cyb - 86, 36, 28);
+              text(ctx, '...', cu.x, cyb - 86, 13, '#8a5a2b');
+            }
           }
         })(L.floors[fi]);
       }
 
-      // --- thang máy (trái tháp) ---
+      // --- tầng trệt: tòa SUSHI TOWER ---
+      (function () {
+        var gy = L.groundY;
+        if (gy > VIEW_BOTTOM + 40 || gy + GROUND_H < VIEW_TOP - 40) return;
+        // cashier staff level 0..20 -> map 1..6
+        var lv = Math.max(1, Math.min(6, Math.ceil(s.staff.cashier / 4) || 1));
+        var img = store['cashierL' + lv] || store.cashierL1;
+        if (img) ctx.drawImage(img, 0, gy, W, GROUND_H);
+      })();
+
+      // --- thang máy (vẽ SAU tòa tầng trệt để thấy rõ khách lên/xuống ở trệt) ---
       (function () {
         var sx = 8, sw = 36;
         var shaftTop = L.y0 + ADD_H + 4, shaftBot = L.groundY + GROUND_H - 4;
@@ -350,30 +510,24 @@
         ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(sx + 12, shaftTop + 6); ctx.lineTo(sx + 12, shaftBot - 6); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(sx + sw - 12, shaftTop + 6); ctx.lineTo(sx + sw - 12, shaftBot - 6); ctx.stroke();
-        // vị trí cabin: ping-pong mượt từ đỉnh tới đáy
-        var ph = (t * 0.22) % 2, u = ph < 1 ? ph : 2 - ph;
-        u = u * u * (3 - 2 * u);
-        var cabH = 64;
-        var cabY = shaftTop + 6 + u * (shaftBot - shaftTop - 12 - cabH);
-        // cabin: khung vàng + Lift Guy
+        // cabin rộng 52, căn giữa shaft; dừng theo điểm dừng (updateElev)
+        var cabY = elev.y, cabX = sx + sw / 2 - CAB_W / 2;
+        if (cabY + CAB_H < VIEW_TOP - 60 || cabY > VIEW_BOTTOM + 60) return;
         ctx.fillStyle = '#3a2a18';
-        rr(ctx, sx - 2, cabY, sw + 4, cabH, 6); ctx.fill();
-        ctx.strokeStyle = '#e8b32a'; ctx.lineWidth = 3; ctx.stroke();
+        rr(ctx, cabX, cabY, CAB_W, CAB_H, 6); ctx.fill();
+        // Lift Guy + khách trong cabin
         var lg = A.anim(delivF, t, 6);
         if (lg) {
-          var lw = 30, lh = lw * lg.height / lg.width;
-          ctx.drawImage(lg, sx + sw / 2 - lw / 2, cabY + cabH - 6 - lh, lw, lh);
+          var lw = 24, lh = lw * lg.height / lg.width;
+          ctx.drawImage(lg, cabX + 4, cabY + CAB_H - 4 - lh, lw, lh);
         }
-      })();
-
-      // --- tầng trệt: tòa SUSHI TOWER ---
-      (function () {
-        var gy = L.groundY;
-        if (gy > VIEW_BOTTOM + 40 || gy + GROUND_H < VIEW_TOP - 40) return;
-        // cashier staff level 0..20 -> map 1..6
-        var lv = Math.max(1, Math.min(6, Math.ceil(s.staff.cashier / 4) || 1));
-        var img = store['cashierL' + lv] || store.cashierL1;
-        if (img) ctx.drawImage(img, 0, gy, W, GROUND_H);
+        for (var r = 0; r < elev.riders.length; r++) {
+          var rc = elev.riders[r];
+          drawCustomer(ctx, store, cabX + 35 + r * 13, rc.rideY || (cabY + CAB_H - 6), rc.variant, 'idle', 0.42);
+        }
+        // viền cabin đè lên trên cho gọn
+        ctx.strokeStyle = '#e8b32a'; ctx.lineWidth = 3;
+        rr(ctx, cabX, cabY, CAB_W, CAB_H, 6); ctx.stroke();
       })();
 
       // --- đường + xe ---
@@ -389,13 +543,14 @@
         for (var dx = -20; dx < W + 20; dx += 44) {
           ctx.fillRect(dx, ry + 10 + (ROAD_H - 22) / 2 - 2, 24, 4);
         }
-        // 5 xe ambient, 2 làn — cùng tốc độ + cách đều mỗi làn để không lồng vào nhau
+        // 5 xe ambient, 2 làn — sprite xe quay mặt TRÁI sẵn:
+        // làn trên đi sang trái (không lật), làn dưới đi sang phải (lật ngang)
         var lanes = [ry + 26, ry + 58];
         var laneCars = [[0, 2, 4], [1, 3]];
         var carSpeed = 52, span = W + 320;
         var orderX = s.car ? s.car.x * W : null;
         for (var li = 0; li < laneCars.length; li++) {
-          var right = li === 0, ids = laneCars[li];
+          var right = li === 1, ids = laneCars[li];
           for (var j = 0; j < ids.length; j++) {
             var k = ids[j];
             var set = carSets[k] || carSets[0];
@@ -409,7 +564,7 @@
             var cw = 104, ch = cw * img.height / img.width;
             var cy2 = lanes[li];
             ctx.save();
-            if (!right) { ctx.translate(x + cw / 2, 0); ctx.scale(-1, 1); ctx.translate(-(x + cw / 2), 0); }
+            if (right) { ctx.translate(x + cw / 2, 0); ctx.scale(-1, 1); ctx.translate(-(x + cw / 2), 0); }
             ctx.drawImage(img, x, cy2 - ch / 2, cw, ch);
             ctx.restore();
           }
@@ -427,6 +582,18 @@
           ctx.strokeStyle = '#7a4f00'; ctx.lineWidth = 2; ctx.stroke();
           text(ctx, 'Đơn drive-thru! Chạm để nhận', 0, 1, 14, '#5d3a00');
           ctx.restore();
+        }
+      })();
+
+      // --- khách ở mặt đất: đi tới / đợi / rời thang máy ---
+      (function () {
+        var gyb = L.roadY + 55;
+        if (gyb > VIEW_BOTTOM + 40 || gyb < VIEW_TOP - 40) return;
+        for (var j = 0; j < flow.list.length; j++) {
+          var cu = flow.list[j];
+          if (cu.state !== 'toElevator' && cu.state !== 'waitElevator' && cu.state !== 'exit') continue;
+          drawCustomer(ctx, store, cu.x, gyb, cu.variant,
+            cu.state === 'waitElevator' ? 'idle' : 'walking', 0.72);
         }
       })();
 
@@ -494,8 +661,7 @@
         if (x >= F.btn.x && x <= F.btn.x + F.btn.w && y >= F.btn.y && y <= F.btn.y + F.btn.h)
           return { type: 'floorUp', i: F.i };
         var c = F.chef;
-        var poseNow = chefPose(F.i, Date.now() / 1000);
-        if (Math.abs(x - poseNow.x) < 44 && y > c.y - c.h && y < c.y + c.h * 0.7)
+        if (Math.abs(x - chefX(F.i)) < 44 && y > c.y - c.h && y < c.y + c.h * 0.7)
           return { type: 'chef', i: F.i };
       }
       if (s.car) {
@@ -507,8 +673,19 @@
 
     function draw(ctx, s, ui, nowMs) {
       ctx.clearRect(0, 0, W, H);
-      if (ui.screen === 'map') drawMap(ctx, s, nowMs, ui);
-      else drawTower(ctx, s, ui, nowMs);
+      var dt = 0;
+      if (lastNow > 0) dt = Math.min(0.1, Math.max(0, (nowMs - lastNow) / 1000));
+      lastNow = nowMs;
+      if (ui.screen === 'map') {
+        drawMap(ctx, s, nowMs, ui);
+      } else {
+        var L = towerLayout(s, ui);
+        ui.towerScroll = L.scroll; // clamp
+        updateElev(dt, L);
+        updateFlow(dt, L, s.floors.length);
+        updateChefs(dt, s.floors.length);
+        drawTower(ctx, s, ui, nowMs, L);
+      }
       drawFx(ctx);
     }
 
