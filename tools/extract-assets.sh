@@ -92,8 +92,14 @@ cp_one "Png/Ui and PopUp/HubAreaBar.png"        "ui/hub-area-bar.png"
 cp_one "Png/Ui and PopUp/Area Box.png"          "ui/area-box.png"
 
 echo "== Menu icons từ Game Icon Pack (6) =="
+# Chấp nhận cả 2 kiểu giải nén: có hoặc không có thư mục png/ ở trên cùng
+IP=""
 if [ -n "$ICONPACK" ] && [ -d "$ICONPACK/png/no-padding/128px/white" ]; then
   IP="$ICONPACK/png/no-padding/128px/white"
+elif [ -n "$ICONPACK" ] && [ -d "$ICONPACK/no-padding/128px/white" ]; then
+  IP="$ICONPACK/no-padding/128px/white"
+fi
+if [ -n "$IP" ]; then
   mkdir -p "$OUT/menu"
   cp -f "$IP/5-food/onigiri.png"  "$OUT/menu/nigiri.png"      && copied=$((copied+1))
   cp -f "$IP/5-food/rice.png"     "$OUT/menu/maki.png"        && copied=$((copied+1))
