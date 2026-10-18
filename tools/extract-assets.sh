@@ -52,8 +52,16 @@ seq_copy "Png/Floor Girl" "FloorGirl-animation" 20 "waiter" "anim"
 echo "== Lift Guy / giao hàng (20) =="
 seq_copy "Png/Lift Guy" "Lift Guy-animation" 20 "delivery" "anim"
 
-echo "== Car drive-thru (40) =="
-seq_copy "Png/Cars/Car1/Move" "Cars-Car1_Move" 40 "car" "move"
+echo "== Car drive-thru (200: 5 loại x 40) =="
+for c in 1 2 3 4 5; do
+  if [ "$c" = "1" ]; then out="car"; else out="car$c"; fi
+  seq_copy "Png/Cars/Car$c/Move" "Cars-Car${c}_Move" 40 "$out" "move"
+done
+
+echo "== Cashiers — tòa tầng trệt SUSHI TOWER (6) =="
+for n in 1 2 3 4 5 6; do
+  cp_one "Png/Cashiers/CashierL$n.png" "cashiers/cashier-l$n.png"
+done
 
 echo "== Map (6) =="
 cp_one "Png/Open Area Map/Area.png"               "map/island.png"
@@ -90,6 +98,16 @@ cp_one "Png/Ui and PopUp/Btn_Sound_Off.png"     "ui/btn-sound-off.png"
 cp_one "Png/Ui and PopUp/GemsPlusBar.png"       "ui/gems-plus-bar.png"
 cp_one "Png/Ui and PopUp/HubAreaBar.png"        "ui/hub-area-bar.png"
 cp_one "Png/Ui and PopUp/Area Box.png"          "ui/area-box.png"
+cp_one "Png/Ui and PopUp/BtnUp.png"             "ui/btn-up.png"
+cp_one "Png/Ui and PopUp/SettingIcon.png"       "ui/setting-icon.png"
+cp_one "Png/Ui and PopUp/Btn_Boost.png"         "ui/btn-boost.png"
+cp_one "Png/Ui and PopUp/Boost_Icon.png"        "ui/boost-icon.png"
+cp_one "Png/Ui and PopUp/Btn_Vibra.png"        "ui/btn-vibra.png"
+cp_one "Png/Ui and PopUp/Btn_Vibra_Off.png"    "ui/btn-vibra-off.png"
+cp_one "Png/Ui and PopUp/VolumeBar_Bg.png"     "ui/volume-bar-bg.png"
+cp_one "Png/Ui and PopUp/VolumeBar_Yellow.png" "ui/volume-bar-yellow.png"
+cp_one "Png/Ui and PopUp/VolumeBar_Btn.png"    "ui/volume-bar-btn.png"
+cp_one "Png/Ui and PopUp/RequermentBox.png"    "ui/requirement-box.png"
 
 echo "== Menu icons từ Game Icon Pack (6) =="
 # Chấp nhận cả 2 kiểu giải nén: có hoặc không có thư mục png/ ở trên cùng

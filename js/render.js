@@ -4,17 +4,23 @@
   var CFG = root.SushiConfig, A = root.SushiAssets;
   var W = CFG.W, H = CFG.H;
 
+  // Kích thước layout tháp (design 390x844)
+  var VIEW_TOP = 78, VIEW_BOTTOM = 760;
+  var FLOOR_W = W, FLOOR_H = Math.round(W * 340 / 1056); // 126
+  var GROUND_H = Math.round(W * 412 / 1040);            // 155
+  var ROAD_H = 88, ADD_H = 60;
+
   function createRenderer(store) {
     // cache dãy frame
     var chefCook = A.frames(store, 'chefCook', 20);
     var chefWalk = A.frames(store, 'chefWalk', 20);
-    var chefServe = A.frames(store, 'chefServe', 20);
     var cashierF = A.frames(store, 'cashier', 40);
     var waiterF = A.frames(store, 'waiter', 20);
-    var delivF = A.frames(store, 'deliv', 20);
-    var carF = A.frames(store, 'car', 40);
+    var delivF = A.frames(store, 'deliv', 20); // Lift Guy: dùng cho thang máy
+    var carSets = [A.frames(store, 'car', 40)];
+    for (var cs = 2; cs <= 5; cs++) carSets.push(A.frames(store, 'car' + cs + '_', 40));
 
-    var fx = []; // particles do render quản lý {kind,x,y,vx,vy,t,life,value,label,img}
+    var fx = []; // particles do render quản lý
 
     function rr(ctx, x, y, w, h, r) { // rounded rect path
       ctx.beginPath();
@@ -24,12 +30,6 @@
       ctx.arcTo(x, y + h, x, y, r);
       ctx.arcTo(x, y, x + w, y, r);
       ctx.closePath();
-    }
-    function drawImg(ctx, img, x, y, w, h) {
-      if (!img) return false;
-      if (w === undefined) ctx.drawImage(img, x, y);
-      else ctx.drawImage(img, x, y, w, h);
-      return true;
     }
     function text(ctx, s, x, y, size, color, font, align) {
       ctx.fillStyle = color || '#fff';
@@ -61,12 +61,11 @@
       }
     }
     function updateFx(dt) {
-      var tx = 78, ty = 34; // vị trí HUD coin
+      var tx = 300, ty = 34; // vị trí HUD coin (mới)
       for (var i = fx.length - 1; i >= 0; i--) {
         var p = fx[i];
         p.t += dt;
         if (p.kind === 'coin') {
-          // bay cong về HUD coin
           var dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
           var sp = 260 + p.t * 500;
           p.vx = p.vx * 0.9 + (dx / d) * sp * 0.12;
@@ -79,7 +78,6 @@
         }
       }
     }
-    // tap vào coin bay -> trả về tổng bonus, 0 nếu không trúng
     function tapFx(x, y) {
       var bonus = 0;
       for (var i = fx.length - 1; i >= 0; i--) {
@@ -112,30 +110,31 @@
     }
 
     // --- nhân vật chibi (khách vẽ tay vì kit không có sprite khách) ---
-    function drawCustomer(ctx, x, yBase, color, phase) {
+    function drawCustomer(ctx, x, yBase, color, phase, scale) {
+      scale = scale || 1;
+      ctx.save();
+      ctx.translate(x, yBase);
+      ctx.scale(scale, scale);
       var bob = phase === 'eating' ? Math.sin(Date.now() / 130) * 2 : 0;
-      var y = yBase + bob;
+      ctx.translate(0, bob);
       ctx.fillStyle = 'rgba(0,0,0,.25)';
-      ctx.beginPath(); ctx.ellipse(x, yBase + 4, 16, 5, 0, 0, 7); ctx.fill();
-      // thân
+      ctx.beginPath(); ctx.ellipse(0, 4, 16, 5, 0, 0, 7); ctx.fill();
       ctx.fillStyle = color;
-      rr(ctx, x - 13, y - 34, 26, 26, 9); ctx.fill();
+      rr(ctx, -13, -34, 26, 26, 9); ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 2; ctx.stroke();
-      // đầu
       ctx.fillStyle = '#ffd9b3';
-      ctx.beginPath(); ctx.arc(x, y - 44, 12, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, -44, 12, 0, 7); ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 2; ctx.stroke();
-      // tóc
       ctx.fillStyle = '#4a2f1d';
-      ctx.beginPath(); ctx.arc(x, y - 47, 12, Math.PI, 0); ctx.fill();
-      // mắt
+      ctx.beginPath(); ctx.arc(0, -47, 12, Math.PI, 0); ctx.fill();
       ctx.fillStyle = '#222';
-      ctx.beginPath(); ctx.arc(x - 4.5, y - 43, 1.8, 0, 7); ctx.fill();
-      ctx.beginPath(); ctx.arc(x + 4.5, y - 43, 1.8, 0, 7); ctx.fill();
-      if (phase === 'eating') { // miệng nhai
+      ctx.beginPath(); ctx.arc(-4.5, -43, 1.8, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(4.5, -43, 1.8, 0, 7); ctx.fill();
+      if (phase === 'eating') {
         ctx.strokeStyle = '#a55'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(x, y - 38, 3.5, 0.2, Math.PI - 0.2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, -38, 3.5, 0.2, Math.PI - 0.2); ctx.stroke();
       }
+      ctx.restore();
     }
 
     function bubble(ctx, x, y, w, h) {
@@ -148,154 +147,268 @@
       ctx.closePath(); ctx.fill(); ctx.stroke();
     }
 
-    // ================= MÀN NHÀ HÀNG =================
-    var LAYOUT = {
-      floorY: 148, chefX: 292, cashierX: 66, counterY: 400,
-    };
-    // Emoji dự phòng khi icon món ăn chưa kịp tải / thiếu file
     var DISH_EMOJI = { nigiri: '🍣', maki: '🍙', temaki: '🍱', uramaki: '🍘', sashimi: '🐟', dragon: '🐉' };
-    function drawRestaurant(ctx, s, nowMs) {
+    var CUST_COLORS = ['#ff8a80', '#82b1ff', '#b9f6ca', '#ce93d8', '#ffcc80', '#80deea'];
+
+    // khách ambient mỗi tầng (thuần visual, render-local)
+    function ambCustomers(idx) {
+      var out = [];
+      for (var k = 0; k < 2; k++) {
+        out.push({
+          x: 78 + k * 68,
+          color: CUST_COLORS[(idx * 2 + k) % CUST_COLORS.length],
+          dish: CFG.DISH_IDS[(idx * 2 + k) % CFG.DISH_IDS.length],
+          off: k * 5.5,
+        });
+      }
+      return out;
+    }
+
+    // ---- layout tháp (dùng chung cho vẽ + hitTest) ----
+    function towerLayout(s, ui) {
+      var N = s.floors.length;
+      var contentH = ADD_H + N * FLOOR_H + GROUND_H + ROAD_H;
+      var viewportH = VIEW_BOTTOM - VIEW_TOP;
+      var maxScroll = Math.max(0, contentH - viewportH);
+      var scroll = Math.max(0, Math.min(maxScroll, ui.towerScroll || 0));
+      var y0 = contentH <= viewportH ? VIEW_BOTTOM - contentH : VIEW_TOP - scroll;
+      var addBar = { x: (W - 300) / 2, y: y0 + 8, w: 300, h: 44 };
+      var floors = [];
+      for (var i = N - 1; i >= 0; i--) {
+        var fy = y0 + ADD_H + (N - 1 - i) * FLOOR_H;
+        floors.push({
+          i: i, fy: fy,
+          btn: { x: W - 52, y: fy + 10, w: 42, h: 40 },
+          chef: { x: 248, y: fy + 44, w: 64, h: 74 },
+        });
+      }
+      var groundY = y0 + ADD_H + N * FLOOR_H;
+      var roadY = groundY + GROUND_H;
+      return {
+        y0: y0, contentH: contentH, maxScroll: maxScroll, scroll: scroll,
+        addBar: addBar, floors: floors, groundY: groundY, roadY: roadY,
+      };
+    }
+
+    // ================= MÀN THÁP =================
+    function drawTower(ctx, s, ui, nowMs) {
       var t = nowMs / 1000;
-      // nền tường ấm
+      var N = s.floors.length;
+
+      // --- nền trời ---
       var g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, '#241610'); g.addColorStop(0.45, '#3a2415'); g.addColorStop(1, '#1c110a');
+      g.addColorStop(0, '#2f9be8'); g.addColorStop(0.55, '#7cc4f5'); g.addColorStop(1, '#c4e7fb');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
-      // ảnh tầng (1056x340 -> fit width)
-      var fl = store['floor' + s.floor] || store.floor1;
-      var fw = W, fh = fw * 340 / 1056;
-      var fy = LAYOUT.floorY;
-      if (fl) ctx.drawImage(fl, 0, fy, fw, fh);
-      var feetY = fy + fh - 8;
-
-      // sàn gỗ dưới nhà hàng (vân ván mờ cho đỡ trống)
-      ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2;
-      for (var py = feetY + 60; py < H - 90; py += 30) {
-        ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
-      }
-
-      // đầu bếp (đang nấu -> cooking, bưng -> serve, còn lại walk tại chỗ)
-      var chefImg;
-      if (s.cooking) chefImg = A.anim(chefCook, t, 8);
-      else if (s.customers.some(function (c) { return c.phase === 'beingServed'; })) chefImg = A.anim(chefServe, t, 8);
-      else chefImg = A.anim(chefWalk, t, 4);
-      if (chefImg) {
-        var cw = 76, chh = cw * chefImg.height / chefImg.width;
-        ctx.drawImage(chefImg, LAYOUT.chefX - cw / 2, feetY - chh, cw, chh);
-        // tap boost: hào quang
-        if (s.t / 1000 < s.buffs.cookUntil) {
-          ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 3;
-          ctx.beginPath(); ctx.arc(LAYOUT.chefX, feetY - chh / 2, 46 + Math.sin(t * 6) * 3, 0, 7); ctx.stroke();
-          text(ctx, 'x2', LAYOUT.chefX, feetY - chh - 16, 18, '#ffd54f');
-        }
-        // tiến độ nấu
-        if (s.cooking) {
-          var pr = 1 - s.cooking.t / s.cooking.total;
-          ctx.fillStyle = 'rgba(0,0,0,.5)';
-          rr(ctx, LAYOUT.chefX - 34, feetY - chh - 26, 68, 10, 5); ctx.fill();
-          ctx.fillStyle = '#ffb300';
-          rr(ctx, LAYOUT.chefX - 32, feetY - chh - 24, 64 * Math.min(1, pr), 6, 3); ctx.fill();
-          var di = store[A.DISH_ICON[s.cooking.dish]];
-          if (di) ctx.drawImage(di, LAYOUT.chefX + 38, feetY - chh - 30, 24, 24);
-        }
-        // hàng đợi
-        if (s.queue.length) text(ctx, 'Chờ: ' + s.queue.length, LAYOUT.chefX, feetY + 16, 14, '#ffcc80');
-      }
-
-      // thu ngân
-      var csImg = A.anim(cashierF, t, 6);
-      if (csImg) {
-        var csw = 84, csh = csw * csImg.height / csImg.width;
-        ctx.drawImage(csImg, LAYOUT.cashierX - csw / 2, feetY - csh, csw, csh);
-      }
-
-      // phục vụ đi qua đi lại (thuê rồi thì nhanh nhẹn hơn)
-      {
-        var busy = s.customers.some(function (c) { return c.phase === 'beingServed'; });
-        var wx = 150 + Math.sin(t * (busy ? 2.2 : 0.9)) * 90;
-        var wImg = A.anim(waiterF, t, busy ? 10 : 6);
-        if (wImg) {
-          var ww = 62, wh = ww * wImg.height / wImg.width;
-          var flip = Math.cos(t * (busy ? 2.2 : 0.9)) > 0;
-          ctx.save();
-          ctx.translate(wx, feetY + 44); ctx.scale(flip ? -1 : 1, 1);
-          ctx.drawImage(wImg, -ww / 2, -wh, ww, wh);
-          ctx.restore();
+      // skyline xa (tòa nhà đơn giản, 2 lớp)
+      function skyline(baseY, color, seed, bh) {
+        ctx.fillStyle = color;
+        for (var i = 0; i < 16; i++) {
+          var hsh = Math.abs(Math.sin(i * 127.1 + seed * 311.7) * 43758.5) % 1;
+          var bw = 34 + hsh * 44, bh2 = bh * (0.5 + hsh * 0.9);
+          var bx = i * 28 - 20 + hsh * 14;
+          rr(ctx, bx, baseY - bh2, bw, bh2, 4); ctx.fill();
         }
       }
+      skyline(VIEW_BOTTOM - 40, 'rgba(150,195,235,.55)', 3, 190);
+      skyline(VIEW_BOTTOM - 40, 'rgba(110,165,220,.6)', 7, 130);
 
-      // quầy bar + ghế
-      var cy = LAYOUT.counterY;
-      ctx.fillStyle = '#5d3a1e';
-      rr(ctx, 14, cy, W - 28, 30, 12); ctx.fill();
-      ctx.fillStyle = '#7a4f28';
-      rr(ctx, 14, cy, W - 28, 12, 8); ctx.fill();
-      ctx.fillStyle = 'rgba(0,0,0,.3)';
-      for (var si = 0; si < 6; si++) {
-        var sx = (0.14 + 0.72 * (si / 5)) * W;
-        ctx.beginPath(); ctx.arc(sx, cy + 44, 9, 0, 7); ctx.fill();
+      // mây trôi
+      if (store.mapClouds) {
+        var clouds = [
+          { x: ((t * 9) % (W + 320)) - 160, y: 108, w: 150 },
+          { x: ((t * 6 + 200) % (W + 320)) - 160, y: 210, w: 110 },
+          { x: (W - ((t * 7 + 90) % (W + 320)) + 160), y: 300, w: 130 },
+        ];
+        ctx.globalAlpha = 0.9;
+        for (var ci = 0; ci < clouds.length; ci++) {
+          var cl = clouds[ci];
+          ctx.drawImage(store.mapClouds, cl.x, cl.y, cl.w, cl.w * 164 / 442);
+        }
+        ctx.globalAlpha = 1;
       }
 
-      // khách
-      var n = CFG.FLOORS[s.floor].tables;
-      for (var i = 0; i < s.customers.length; i++) {
-        var c = s.customers[i];
-        var cx = c.x * W, cby = cy - 2;
-        drawCustomer(ctx, cx, cby, c.color, c.phase);
-        if (c.phase === 'ordering' || c.phase === 'waiting' || c.phase === 'beingServed') {
-          var bx = cx, by = cby - 92;
-          bubble(ctx, bx, by, 52, 40);
-          var di2 = c.dish && store[A.DISH_ICON[c.dish]];
-          if (di2) ctx.drawImage(di2, bx - 13, by - 14, 26, 26);
-          else text(ctx, DISH_EMOJI[c.dish] || '?', bx, by, 20, '#8a5a2b');
-          if (c.phase === 'waiting') { // thanh kiên nhẫn
-            var pr2 = c.t / 60;
-            ctx.fillStyle = 'rgba(0,0,0,.4)';
-            rr(ctx, bx - 22, by + 24, 44, 6, 3); ctx.fill();
-            ctx.fillStyle = pr2 > 0.35 ? '#8bc34a' : '#e53935';
-            rr(ctx, bx - 21, by + 25, 42 * Math.max(0, pr2), 4, 2); ctx.fill();
+      var L = towerLayout(s, ui);
+      ui.towerScroll = L.scroll; // clamp
+
+      // --- thanh THÊM TẦNG ---
+      (function () {
+        var b = L.addBar, maxed = N >= CFG.MAX_TOWER_FLOORS;
+        ctx.fillStyle = '#6b4226';
+        rr(ctx, b.x, b.y, b.w, b.h, 12); ctx.fill();
+        ctx.strokeStyle = '#4a2c17'; ctx.lineWidth = 3; ctx.stroke();
+        if (store.coin) ctx.drawImage(store.coin, b.x + 14, b.y + 8, 28, 28);
+        if (maxed) {
+          text(ctx, 'TỐI ĐA ' + N + ' TẦNG', b.x + b.w / 2 + 14, b.y + b.h / 2, 20, '#ffe9b8', 'Bebas Neue');
+        } else {
+          var cost = CFG.addFloorCost(N);
+          text(ctx, CFG.fmt(cost), b.x + 66, b.y + b.h / 2, 22, '#ffd54f', 'Bebas Neue', 'left');
+          text(ctx, 'THÊM TẦNG', b.x + b.w - 18, b.y + b.h / 2, 20, '#ffe9b8', 'Bebas Neue', 'right');
+        }
+      })();
+
+      // --- các tầng (vẽ từ trên xuống) ---
+      for (var fi = 0; fi < L.floors.length; fi++) {
+        (function (F) {
+          var i = F.i, fy = F.fy, lvl = s.floors[i].level;
+          if (fy + FLOOR_H < VIEW_TOP - 40 || fy > VIEW_BOTTOM + 40) return; // cull
+          var img = store['floor' + lvl] || store.floor0;
+          if (img) ctx.drawImage(img, 0, fy, FLOOR_W, FLOOR_H);
+
+          // biển tên tầng
+          var nx = 158, ny = fy - 2, nw = 150, nh = 32;
+          ctx.fillStyle = '#6b4226';
+          rr(ctx, nx - nw / 2, ny, nw, nh, 9); ctx.fill();
+          ctx.strokeStyle = '#3d2412'; ctx.lineWidth = 2.5; ctx.stroke();
+          text(ctx, 'TẦNG ' + (i + 1) + ' · LV' + lvl, nx, ny + nh / 2 + 1, 19, '#ffe9b8', 'Bebas Neue');
+          // thu nhập/s nhỏ dưới biển tên
+          text(ctx, '+' + CFG.fmt(root.SushiSim.floorIncome(s, i)) + '/s', nx, ny + nh + 11, 12, '#fff', 'Lilita One');
+
+          // nút clipboard nâng cấp (mép phải)
+          var b = F.btn;
+          var afford = s.coins >= CFG.upgradeFloorCost(lvl) && lvl < CFG.MAX_FLOOR_LEVEL;
+          var pulse = afford ? 1 + Math.sin(t * 5) * 0.07 : 1;
+          if (store.btnUp) {
+            var bw = b.w * pulse, bh = b.h * pulse;
+            ctx.drawImage(store.btnUp, b.x + (b.w - bw) / 2, b.y + (b.h - bh) / 2, bw, bh);
           }
-        } else if (c.phase === 'eating') {
-          bubble(ctx, cx, cby - 92, 40, 32);
-          text(ctx, '...', cx, cby - 92, 16, '#8a5a2b');
-        }
-      }
-      void n;
+          if (lvl >= CFG.MAX_FLOOR_LEVEL) text(ctx, 'MAX', b.x + b.w / 2, b.y + b.h + 10, 12, '#ffd54f', 'Bebas Neue');
 
-      // giao hàng đi bộ dưới cùng (nếu đã thuê)
-      if (s.staff.delivery > 0) {
-        var dx = (0.5 + 0.42 * Math.sin(t * 0.7)) * W;
-        var dImg = A.anim(delivF, t, 8);
-        if (dImg) {
-          var dw = 44, dh = dw * dImg.height / dImg.width;
+          // đầu bếp trong tầng
+          var c = F.chef;
+          var chefImg = A.anim(chefCook, t + i * 1.7, 8);
+          if (chefImg) {
+            var chh = c.h, cw = chh * chefImg.width / chefImg.height;
+            ctx.drawImage(chefImg, c.x - cw / 2, c.y + c.h / 2 - chh, cw, chh);
+            var now = s.t / 1000;
+            if (now < (s.floorBuffUntil[i] || 0)) {
+              ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 3;
+              ctx.beginPath(); ctx.arc(c.x, c.y, 40 + Math.sin(t * 6) * 3, 0, 7); ctx.stroke();
+              text(ctx, 'x2', c.x, c.y - 48, 17, '#ffd54f');
+            } else if (now < (s.floorCdUntil[i] || 0)) {
+              // đang hồi chiêu: không vẽ gì thêm
+            }
+          }
+
+          // khách ambient
+          var custs = ambCustomers(i);
+          for (var k = 0; k < custs.length; k++) {
+            (function (cu) {
+              var cyc = (t + cu.off) % 11;
+              if (cyc > 9.5) return; // vắng 1 lúc
+              var cx = cu.x, cyb = fy + FLOOR_H - 8;
+              var ph = cyc < 5.5 ? 'waiting' : 'eating';
+              drawCustomer(ctx, cx, cyb, cu.color, ph, 0.72);
+              if (cyc < 5.5) {
+                bubble(ctx, cx, cyb - 62, 40, 32);
+                var di = store[A.DISH_ICON[cu.dish]];
+                if (di) {
+                  // icon pack bản trắng -> lót đĩa nền tối cho nổi trên bubble trắng
+                  ctx.fillStyle = '#4a2f1d';
+                  ctx.beginPath(); ctx.arc(cx, cyb - 62, 13, 0, 7); ctx.fill();
+                  ctx.drawImage(di, cx - 10, cyb - 72, 20, 20);
+                }
+                else text(ctx, DISH_EMOJI[cu.dish] || '?', cx, cyb - 62, 17, '#8a5a2b');
+              } else {
+                bubble(ctx, cx, cyb - 62, 34, 26);
+                text(ctx, '...', cx, cyb - 62, 13, '#8a5a2b');
+              }
+            })(custs[k]);
+          }
+        })(L.floors[fi]);
+      }
+
+      // --- thang máy (trái tháp) ---
+      (function () {
+        var sx = 8, sw = 36;
+        var shaftTop = L.y0 + ADD_H + 4, shaftBot = L.groundY + GROUND_H - 4;
+        if (shaftBot <= shaftTop + 60) return;
+        // ray
+        ctx.fillStyle = '#20140c';
+        rr(ctx, sx, shaftTop, sw, shaftBot - shaftTop, 8); ctx.fill();
+        ctx.strokeStyle = '#0f0905'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(sx + 12, shaftTop + 6); ctx.lineTo(sx + 12, shaftBot - 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx + sw - 12, shaftTop + 6); ctx.lineTo(sx + sw - 12, shaftBot - 6); ctx.stroke();
+        // vị trí cabin: ping-pong mượt từ đỉnh tới đáy
+        var ph = (t * 0.22) % 2, u = ph < 1 ? ph : 2 - ph;
+        u = u * u * (3 - 2 * u);
+        var cabH = 64;
+        var cabY = shaftTop + 6 + u * (shaftBot - shaftTop - 12 - cabH);
+        // cabin: khung vàng + Lift Guy
+        ctx.fillStyle = '#3a2a18';
+        rr(ctx, sx - 2, cabY, sw + 4, cabH, 6); ctx.fill();
+        ctx.strokeStyle = '#e8b32a'; ctx.lineWidth = 3; ctx.stroke();
+        var lg = A.anim(delivF, t, 6);
+        if (lg) {
+          var lw = 30, lh = lw * lg.height / lg.width;
+          ctx.drawImage(lg, sx + sw / 2 - lw / 2, cabY + cabH - 6 - lh, lw, lh);
+        }
+      })();
+
+      // --- tầng trệt: tòa SUSHI TOWER ---
+      (function () {
+        var gy = L.groundY;
+        if (gy > VIEW_BOTTOM + 40 || gy + GROUND_H < VIEW_TOP - 40) return;
+        // cashier staff level 0..20 -> map 1..6
+        var lv = Math.max(1, Math.min(6, Math.ceil(s.staff.cashier / 4) || 1));
+        var img = store['cashierL' + lv] || store.cashierL1;
+        if (img) ctx.drawImage(img, 0, gy, W, GROUND_H);
+      })();
+
+      // --- đường + xe ---
+      (function () {
+        var ry = L.roadY;
+        if (ry > VIEW_BOTTOM + 60 || ry + ROAD_H < VIEW_TOP - 60) return;
+        // vỉa hè + mặt đường
+        ctx.fillStyle = '#9aa0ab'; ctx.fillRect(0, ry, W, 10);
+        ctx.fillStyle = '#3c414c'; ctx.fillRect(0, ry + 10, W, ROAD_H - 22);
+        ctx.fillStyle = '#57a85a'; ctx.fillRect(0, ry + ROAD_H - 12, W, 12);
+        // vạch đứt giữa đường
+        ctx.fillStyle = 'rgba(255,255,255,.75)';
+        for (var dx = -20; dx < W + 20; dx += 44) {
+          ctx.fillRect(dx, ry + 10 + (ROAD_H - 22) / 2 - 2, 24, 4);
+        }
+        // 5 xe ambient, 2 làn
+        var lanes = [ry + 26, ry + 58];
+        for (var k = 0; k < 5; k++) {
+          var set = carSets[k] || carSets[0];
+          var img = A.anim(set, t, 10);
+          if (!img) continue;
+          var right = k % 2 === 0;
+          var speed = (38 + k * 9) * (right ? 1 : -1);
+          var span = W + 320;
+          var x = right
+            ? ((t * speed + k * 173) % span) - 160
+            : span - 160 - ((t * -speed + k * 173) % span);
+          var cw = 104, ch = cw * img.height / img.width;
+          var cy2 = lanes[right ? 0 : 1];
           ctx.save();
-          ctx.translate(dx, 700); ctx.scale(Math.cos(t * 0.7) > 0 ? 1 : -1, 1);
-          ctx.drawImage(dImg, -dw / 2, -dh, dw, dh);
+          if (!right) { ctx.translate(x + cw / 2, 0); ctx.scale(-1, 1); ctx.translate(-(x + cw / 2), 0); }
+          ctx.drawImage(img, x, cy2 - ch / 2, cw, ch);
           ctx.restore();
         }
-      }
-
-      // xe drive-thru
-      if (s.car) {
-        var carImg = A.anim(carF, t, 12);
-        var carW = 150, carH = carW * 167 / 236;
-        var carX = s.car.x * W - carW / 2, carY = 596;
-        if (carImg) ctx.drawImage(carImg, carX, carY, carW, carH);
-        // nhãn tap
-        var pulse = 1 + Math.sin(t * 5) * 0.06;
-        ctx.save(); ctx.translate(carX + carW / 2, carY - 18); ctx.scale(pulse, pulse);
-        ctx.fillStyle = 'rgba(255,183,0,.95)';
-        rr(ctx, -104, -17, 208, 34, 17); ctx.fill();
-        ctx.strokeStyle = '#7a4f00'; ctx.lineWidth = 2; ctx.stroke();
-        text(ctx, 'Đơn drive-thru! Chạm để nhận', 0, 1, 14, '#5d3a00');
-        ctx.restore();
-      }
+        // xe đơn drive-thru (từ sim)
+        if (s.car) {
+          var cImg = A.anim(carSets[0], t, 12);
+          var cW = 128, cH = cW * 167 / 236;
+          var carX = s.car.x * W - cW / 2, carY = lanes[0];
+          if (cImg) ctx.drawImage(cImg, carX, carY - cH / 2, cW, cH);
+          var pulse = 1 + Math.sin(t * 5) * 0.06;
+          ctx.save(); ctx.translate(carX + cW / 2, carY - cH / 2 - 16); ctx.scale(pulse, pulse);
+          ctx.fillStyle = 'rgba(255,183,0,.95)';
+          rr(ctx, -104, -17, 208, 34, 17); ctx.fill();
+          ctx.strokeStyle = '#7a4f00'; ctx.lineWidth = 2; ctx.stroke();
+          text(ctx, 'Đơn drive-thru! Chạm để nhận', 0, 1, 14, '#5d3a00');
+          ctx.restore();
+        }
+      })();
 
       drawFx(ctx);
     }
 
-    // ================= MÀN BẢN ĐỒ =================
-    var PLOT_POS = { // tọa độ fraction trên ảnh đảo
+    // ================= MÀN BẢN ĐỒ (giữ nguyên) =================
+    var PLOT_POS = {
       drivethru: [0.60, 0.30], garden: [0.32, 0.47], fishmarket: [0.60, 0.60],
       warehouse: [0.38, 0.73], tower: [0.30, 0.20],
     };
@@ -306,7 +419,6 @@
       var iw = W, ih = iw * 3118 / 1903;
       var iy = 84 + (ui.mapScroll || 0);
       if (isl) ctx.drawImage(isl, 0, iy, iw, ih);
-      // mây trôi
       if (store.mapClouds) {
         var cx = ((t * 12) % (W + 200)) - 100;
         ctx.globalAlpha = 0.85;
@@ -314,7 +426,6 @@
         ctx.drawImage(store.mapClouds, W - cx - 60, iy + ih - 120, 130, 46);
         ctx.globalAlpha = 1;
       }
-      // các ô đất
       for (var i = 0; i < CFG.PLOTS.length; i++) {
         var p = CFG.PLOTS[i], pos = PLOT_POS[p.id];
         var px = pos[0] * W, py = iy + pos[1] * ih;
@@ -324,9 +435,8 @@
         if (bImg) ctx.drawImage(bImg, px - bw / 2, py - bh / 2, bw, bh);
         if (!owned) {
           if (store.mapLock) ctx.drawImage(store.mapLock, px - 16, py - 52, 32, 38);
-          if (s.floor < p.reqFloor) text(ctx, 'Tầng ' + p.reqFloor, px, py - bh / 2 - 14, 13, '#fff');
+          if (s.floors.length < p.reqFloor) text(ctx, s.floors.length + '/' + p.reqFloor + ' tầng', px, py - bh / 2 - 14, 13, '#fff');
         }
-        // nameplate
         if (store.nameplate) {
           ctx.drawImage(store.nameplate, px - 52, py + bh / 2 + 22, 104, 39);
           text(ctx, owned ? p.name : '???', px, py + bh / 2 + 41, 13, owned ? '#4a2f1d' : '#999');
@@ -335,7 +445,6 @@
       text(ctx, 'Chạm vào ô đất để mở khóa', W / 2, H - 96, 15, '#fff');
     }
 
-    // tap vào ô đất trên bản đồ -> trả về plot id hoặc null
     function plotAt(x, y, mapScroll) {
       var iw = W, ih = iw * 3118 / 1903;
       var iy = 84 + (mapScroll || 0);
@@ -347,16 +456,24 @@
       return null;
     }
 
-    // hit test cho tap trên canvas (màn nhà hàng)
+    // hit test cho tap trên canvas (màn tháp)
     function hitTest(s, ui, x, y) {
       if (ui.screen !== 'restaurant') return null;
-      var fy = LAYOUT.floorY, fh = W * 340 / 1056, feetY = fy + fh - 8;
-      // đầu bếp
-      if (Math.abs(x - LAYOUT.chefX) < 48 && y > feetY - 130 && y < feetY + 20) return 'chef';
-      // xe
+      if (y < VIEW_TOP || y > VIEW_BOTTOM) return null;
+      var L = towerLayout(s, ui);
+      var b = L.addBar;
+      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return { type: 'addFloor' };
+      for (var fi = 0; fi < L.floors.length; fi++) {
+        var F = L.floors[fi];
+        if (x >= F.btn.x && x <= F.btn.x + F.btn.w && y >= F.btn.y && y <= F.btn.y + F.btn.h)
+          return { type: 'floorUp', i: F.i };
+        var c = F.chef;
+        if (Math.abs(x - c.x) < 44 && y > c.y - c.h && y < c.y + c.h * 0.7)
+          return { type: 'chef', i: F.i };
+      }
       if (s.car) {
         var carX = s.car.x * W;
-        if (Math.abs(x - carX) < 90 && y > 570 && y < 730) return 'car';
+        if (Math.abs(x - carX) < 90 && y > L.roadY && y < L.roadY + ROAD_H) return { type: 'car' };
       }
       return null;
     }
@@ -364,14 +481,14 @@
     function draw(ctx, s, ui, nowMs) {
       ctx.clearRect(0, 0, W, H);
       if (ui.screen === 'map') drawMap(ctx, s, nowMs, ui);
-      else drawRestaurant(ctx, s, nowMs);
+      else drawTower(ctx, s, ui, nowMs);
       drawFx(ctx);
     }
 
     return {
       draw: draw, hitTest: hitTest, plotAt: plotAt,
       spawnFxFromSim: spawnFxFromSim, updateFx: updateFx, tapFx: tapFx,
-      LAYOUT: LAYOUT,
+      towerLayout: towerLayout, VIEW_TOP: VIEW_TOP, VIEW_BOTTOM: VIEW_BOTTOM,
     };
   }
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#241610">
+<meta name="theme-color" content="#2f9be8">
 <title>Sushi Idle — Nhà hàng sushi chill</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,37 +15,41 @@
 <div id="wrap">
   <canvas id="game"></canvas>
 
-  <!-- HUD -->
+  <!-- HUD kiểu kit: badge khu vực + thanh gem/coin + bánh răng -->
   <div id="hud">
-    <div class="bar coin-bar"><img src="assets/ui/coin.png" alt="coin"><span id="coinVal">0</span></div>
-    <div class="bar gem-bar"><img src="assets/ui/gems.png" alt="gem"><span id="gemVal">0</span></div>
-    <div id="floorBadge">Tầng 1</div>
-    <div id="boostBadge" style="display:none">NẤU x2</div>
-    <button id="btnMusic" class="icon-btn" aria-label="Nhạc"></button>
-    <button id="btnSound" class="icon-btn" aria-label="Âm thanh"></button>
+    <div id="areaBadge"><img src="assets/ui/hub-area-bar.png" alt=""><span>SUSHI TOWN</span></div>
+    <div class="hbar" id="gemBar"><img class="hbar-bg" src="assets/ui/hud-coin-bar.png" alt=""><img class="hbar-ic" src="assets/ui/gems.png" alt=""><span id="gemVal">0</span></div>
+    <div class="hbar" id="coinBar"><img class="hbar-bg" src="assets/ui/hud-coin-bar.png" alt=""><img class="hbar-ic" src="assets/ui/coin.png" alt=""><span id="coinVal">0</span></div>
+    <button id="btnSettings" aria-label="Cài đặt"><img src="assets/ui/setting-icon.png" alt=""></button>
   </div>
+  <div id="towerBoostBadge" style="display:none">BOOST x2</div>
 
-  <!-- Bottom nav -->
+  <!-- Bottom nav: BOOST | Bản đồ | Shop -->
   <nav id="bottomnav">
-    <button data-screen="restaurant" class="active"><img src="assets/chef/cooking-00.png" alt=""><span>Nhà hàng</span></button>
+    <button id="navBoost"><img class="bbg" src="assets/ui/btn-boost.png" alt=""><img class="bic" src="assets/ui/boost-icon.png" alt=""><span class="btxt">BOOST</span><span class="cd" id="boostCd"></span></button>
     <button data-screen="map"><img src="assets/ui/map-icon.png" alt=""><span>Bản đồ</span></button>
     <button data-screen="shop"><img src="assets/ui/shop-icon.png" alt=""><span>Shop</span></button>
   </nav>
 
-  <!-- Shop modal -->
-  <div id="shopModal" class="hidden">
-    <div class="modal-box">
-      <div class="modal-head"><span>Cửa hàng</span><button id="btnCloseShop">✕</button></div>
-      <div id="shopBody"></div>
+  <!-- Popup khung mái ngói Nhật (dùng chung) -->
+  <div id="popup" class="hidden">
+    <div class="popup-frame">
+      <div class="popup-roof">
+        <span id="popupTitle"></span>
+        <button id="popupClose" aria-label="Đóng"><img src="assets/ui/btn-close.png" alt=""></button>
+      </div>
+      <div class="popup-body" id="popupBody"></div>
     </div>
   </div>
 
-  <!-- Popup xác nhận / chào mừng -->
-  <div id="popup" class="hidden">
-    <div class="modal-box small">
-      <div class="modal-head"><span id="popupTitle"></span><button id="popupClose">✕</button></div>
-      <div id="popupBody"></div>
-      <button id="popupOk" class="buy big">Đồng ý</button>
+  <!-- Shop modal (khung mái ngói, cuộn được) -->
+  <div id="shopModal" class="hidden">
+    <div class="popup-frame wide">
+      <div class="popup-roof">
+        <span>CỬA HÀNG</span>
+        <button id="btnCloseShop" aria-label="Đóng"><img src="assets/ui/btn-close.png" alt=""></button>
+      </div>
+      <div class="popup-body scroll" id="shopBody"></div>
     </div>
   </div>
 

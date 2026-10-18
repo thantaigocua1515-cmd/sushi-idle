@@ -2,15 +2,15 @@ SUSHI IDLE — DANH SÁCH ASSETS GAME DÙNG
 Nguồn kit: sushi-restaurant-game-asset-kit.zip (CraftPix, freebie)
 Nguồn icon: Game Icon Pack v1.4 (png/no-padding/128px/white)
 Tái tạo bằng: ./tools/extract-assets.sh <KIT_DIR> [ICONPACK_DIR]
-Tổng: 227 file (~3.6MB). KHÔNG dùng Spine (chỉ frame PNG).
+Tổng: 402 file (~7.9MB). KHÔNG dùng Spine (chỉ frame PNG).
 
-[1] FLOORS — side-view nhà hàng, đổi theo tầng (11)
+[1] FLOORS — side-view nhà hàng, đổi theo LEVEL từng tầng tháp (11)
   floors/floor-lv0.png   <- Png/Floors/Floor_Lv0.png
   floors/floor-lv1.png   <- Png/Floors/Floor_Lv1.png
   ... (tương tự đến lv10)
   floors/floor-lv10.png  <- Png/Floors/Floor_Lv10.png
 
-[2] CHEF GUY — đầu bếp (60 frame, mỗi frame 100x120)
+[2] CHEF GUY — đầu bếp mỗi tầng (60 frame, mỗi frame 100x120)
   chef/cooking-00.png .. cooking-19.png <- Png/Chef Guy/Cooking/ChefGuy-Cooking_NN.png
   chef/walk-00.png    .. walk-19.png    <- Png/Chef Guy/Walk/ChefGuy-Walk_NN.png
   chef/serve-00.png   .. serve-19.png   <- Png/Chef Guy/Walk Full Order/ChefGuy-Walk Full Order_NN.png
@@ -21,24 +21,31 @@ Tổng: 227 file (~3.6MB). KHÔNG dùng Spine (chỉ frame PNG).
 [4] WAITER (Floor Girl) — phục vụ (20 frame, 84x59)
   waiter/anim-00.png .. anim-19.png <- Png/Floor Girl/FloorGirl-animation_NN.png
 
-[5] DELIVERY (Lift Guy) — giao hàng (20 frame, 45x91)
+[5] DELIVERY = LIFT GUY — dùng chung cho thang máy + giao hàng (20 frame, 45x91)
   delivery/anim-00.png .. anim-19.png <- Png/Lift Guy/Lift Guy-animation_NN.png
 
-[6] CAR — xe drive-thru (40 frame, 236x167)
-  car/move-00.png .. move-39.png <- Png/Cars/Car1/Move/Cars-Car1_Move_NN.png
+[6] CAR — xe trên đường, 5 loại x 40 frame (236x167)
+  car/move-00.png  .. move-39.png  <- Png/Cars/Car1/Move/Cars-Car1_Move_NN.png
+  car2/move-00.png .. move-39.png  <- Png/Cars/Car2/Move/Cars-Car2_Move_NN.png
+  car3/move-00.png .. move-39.png  <- Png/Cars/Car3/Move/Cars-Car3_Move_NN.png
+  car4/move-00.png .. move-39.png  <- Png/Cars/Car4/Move/Cars-Car4_Move_NN.png
+  car5/move-00.png .. move-39.png  <- Png/Cars/Car5/Move/Cars-Car5_Move_NN.png
 
-[7] MAP — bản đồ đảo
+[7] CASHIERS — tòa tầng trệt SUSHI TOWER, đổi theo level thu ngân (6, 1040x412)
+  cashiers/cashier-l1.png .. cashier-l6.png <- Png/Cashiers/CashierL1..L6.png
+
+[8] MAP — bản đồ đảo
   map/island.png    <- Png/Open Area Map/Area.png (1903x3118)
   map/locked.png    <- Png/Open Area Map/Locked Building.png
   map/available.png <- Png/Open Area Map/Available Building.png
   map/lock.png      <- Png/Open Area Map/Lock.png
   map/nameplate.png <- Png/Open Area Map/NamePlate.png (193x73)
-  map/clouds.png    <- Png/Open Area Map/Clouds.png
+  map/clouds.png    <- Png/Open Area Map/Clouds.png (dùng cho cả mây trời màn tháp)
 
-[8] SHOP — tòa drive-thru
+[9] SHOP — tòa drive-thru (giữ lại, có thể không dùng)
   shop/tower.png <- Png/Cashiers/CashierL3.png
 
-[9] UI KIT (23)
+[10] UI KIT (32)
   ui/btn-green.png, ui/btn-green-pressed.png,
   ui/btn-blue.png, ui/btn-blue-off.png,
   ui/btn-orange.png, ui/btn-orange-small.png, ui/btn-close.png,
@@ -46,13 +53,21 @@ Tổng: 227 file (~3.6MB). KHÔNG dùng Spine (chỉ frame PNG).
   ui/hud-coin-bar.png, ui/gems-plus-bar.png, ui/hub-area-bar.png,
   ui/popup-box.png, ui/content-box.png, ui/upgrade-box.png, ui/area-box.png,
   ui/shop-icon.png, ui/map-icon.png, ui/arrow-upgrade.png,
-  ui/btn-music.png, ui/btn-music-off.png, ui/btn-sound.png, ui/btn-sound-off.png
+  ui/btn-music.png, ui/btn-music-off.png, ui/btn-sound.png, ui/btn-sound-off.png,
+  ui/btn-up.png (BtnUp — nút clipboard nâng tầng),
+  ui/setting-icon.png (SettingIcon — nút bánh răng HUD),
+  ui/btn-boost.png (Btn_Boost — nút BOOST nav),
+  ui/boost-icon.png (Boost_Icon — tia sét nút BOOST),
+  ui/btn-vibra.png, ui/btn-vibra-off.png,
+  ui/volume-bar-bg.png, ui/volume-bar-yellow.png, ui/volume-bar-btn.png,
+  ui/requirement-box.png (RequermentBox — ô giá nâng cấp)
   <- Png/Ui and PopUp/<tên gốc>.png
 
-[10] MENU ICONS — icon món ăn từ Game Icon Pack (128px, white)
+[11] MENU ICONS — icon món ăn từ Game Icon Pack (128px, white)
   menu/nigiri.png     <- 5-food/onigiri.png
   menu/maki.png       <- 5-food/rice.png
   menu/temaki.png     <- 4-nature/fish.png
   menu/uramaki.png    <- 5-food/zongzi.png
   menu/sashimi.png    <- 4-nature/shrimp.png
   menu/dragon-roll.png<- 5-food/bowl.png
+

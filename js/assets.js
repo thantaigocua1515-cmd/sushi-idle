@@ -20,6 +20,16 @@
     MANIFEST['cashier' + i] = 'assets/cashier/anim-' + q + '.png';
     MANIFEST['car' + i] = 'assets/car/move-' + q + '.png';
   }
+  // xe drive-thru các loại (mỗi loại 40 frame)
+  for (var c = 2; c <= 5; c++) {
+    for (i = 0; i < 40; i++) {
+      var r = ('0' + i).slice(-2);
+      MANIFEST['car' + c + '_' + i] = 'assets/car' + c + '/move-' + r + '.png';
+    }
+  }
+  // tòa tầng trệt theo level thu ngân (CashierL1..L6)
+  for (n = 1; n <= 6; n++) MANIFEST['cashierL' + n] = 'assets/cashiers/cashier-l' + n + '.png';
+
   Object.assign(MANIFEST, {
     island: 'assets/map/island.png',
     mapLocked: 'assets/map/locked.png',
@@ -51,6 +61,16 @@
     btnMusicOff: 'assets/ui/btn-music-off.png',
     btnSound: 'assets/ui/btn-sound.png',
     btnSoundOff: 'assets/ui/btn-sound-off.png',
+    btnUp: 'assets/ui/btn-up.png',
+    settingIcon: 'assets/ui/setting-icon.png',
+    boostBtn: 'assets/ui/btn-boost.png',
+    boostIcon: 'assets/ui/boost-icon.png',
+    vibra: 'assets/ui/btn-vibra.png',
+    vibraOff: 'assets/ui/btn-vibra-off.png',
+    volBg: 'assets/ui/volume-bar-bg.png',
+    volFill: 'assets/ui/volume-bar-yellow.png',
+    volKnob: 'assets/ui/volume-bar-btn.png',
+    reqBox: 'assets/ui/requirement-box.png',
     dishNigiri: 'assets/menu/nigiri.png',
     dishMaki: 'assets/menu/maki.png',
     dishTemaki: 'assets/menu/temaki.png',
