@@ -23,7 +23,7 @@
     var chefSt = {}; // fi -> {mode, x, cookT, serveT, cust}
     var lastNow = 0;
 
-    function tableSpots() { return [92, 172]; }
+    function tableSpots() { return [128, 198]; }
     function floorFy(i, L) {
       for (var f = 0; f < L.floors.length; f++) if (L.floors[f].i === i) return L.floors[f].fy;
       return 0;
