@@ -253,13 +253,12 @@ button.buy:disabled { filter: grayscale(1); opacity: .6; cursor: default; }
   overflow: hidden;
 }
 #loading.hidden { display: none; }
-.load-clouds i {
-  position: absolute; background: rgba(255,255,255,.92); border-radius: 999px;
-  animation: loadDrift linear infinite;
+.load-clouds img {
+  position: absolute; animation: loadDrift linear infinite;
 }
-.load-clouds .c1 { width: 130px; height: 34px; top: 12%; animation-duration: 26s; }
-.load-clouds .c2 { width: 90px; height: 24px; top: 24%; animation-duration: 38s; animation-delay: -12s; }
-.load-clouds .c3 { width: 160px; height: 40px; top: 66%; animation-duration: 32s; animation-delay: -20s; opacity: .8; }
+.load-clouds .c1 { width: 140px; top: 10%; animation-duration: 26s; }
+.load-clouds .c2 { width: 100px; top: 22%; animation-duration: 38s; animation-delay: -12s; }
+.load-clouds .c3 { width: 170px; top: 64%; animation-duration: 32s; animation-delay: -20s; opacity: .9; }
 @keyframes loadDrift { from { left: -180px; } to { left: 110%; } }
 /* mái ngói Nhật */
 .load-roof {
